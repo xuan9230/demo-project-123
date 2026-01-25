@@ -1,7 +1,6 @@
 'use client';
 
-import { MenuIcon, XIcon } from 'lucide-react';
-import Image from 'next/image';
+import { MenuIcon, XIcon, CarIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -14,10 +13,9 @@ export default function Navbar() {
 
     const links = [
         { name: 'Home', href: '/' },
-        { name: 'Agents', href: '#agents' },
-        { name: 'Use Cases', href: '#use-cases' },
-        { name: 'Pricing', href: '#pricing' },
-        { name: 'Docs', href: '#docs' }
+        { name: 'Features', href: '#features' },
+        { name: 'How It Works', href: '#how-it-works' },
+        { name: 'FAQ', href: '#faq' }
     ];
 
     useEffect(() => {
@@ -44,8 +42,9 @@ export default function Navbar() {
                 viewport={{ once: true }}
                 transition={{ type: "spring", stiffness: 250, damping: 70, mass: 1 }}
             >
-                <a href='#!'>
-                    <Image src='/assets/logo.svg' alt='logo' className='h-8.5 w-auto' width={205} height={48} />
+                <a href='/' className='flex items-center gap-2'>
+                    <CarIcon className='size-7 text-green-500' />
+                    <span className='text-xl font-bold'>KiwiCar</span>
                 </a>
 
                 <div className='hidden items-center space-x-10 md:flex'>
@@ -54,8 +53,8 @@ export default function Navbar() {
                             {link.name}
                         </Link>
                     ))}
-                    <Link href='/' className='btn glass'>
-                        Sign Up
+                    <Link href='#waitlist' className='btn bg-green-500 hover:bg-green-600 text-black font-medium'>
+                        Join Waitlist
                     </Link>
                 </div>
 
@@ -72,8 +71,8 @@ export default function Navbar() {
                 ))}
 
 
-                <Link href='/' className='btn glass' onClick={() => setIsOpen(false)}>
-                    Sign Up
+                <Link href='#waitlist' className='btn bg-green-500 hover:bg-green-600 text-black font-medium' onClick={() => setIsOpen(false)}>
+                    Join Waitlist
                 </Link>
 
                 <button onClick={() => setIsOpen(false)} className='rounded-md p-2 glass'>

@@ -1,5 +1,5 @@
 import SectionTitle from "@/components/section-title";
-import { BotIcon, BrainIcon, ZapIcon } from "lucide-react";
+import { SearchIcon, DollarSignIcon, ClockIcon, BellIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRef } from "react";
 
@@ -9,40 +9,45 @@ export default function Features() {
 
     const featuresData = [
         {
-            icon: BotIcon,
-            title: "Autonomous Agents",
-            description: "Agents that plan, execute & think step-by-step.",
+            icon: SearchIcon,
+            title: "Instant Vehicle History",
+            description: "Enter any plate to see WoF history, odometer readings, and damage reports from NZTA.",
         },
         {
-            icon: BrainIcon,
-            title: "Memory & Learning",
-            description: "Agents retain memory and improve over time.",
+            icon: DollarSignIcon,
+            title: "AI-Powered Pricing",
+            description: "Get accurate market valuations based on thousands of real listings.",
         },
         {
-            icon: ZapIcon,
-            title: "Real-time Execution",
-            description: "Fast responses with async task processing.",
-        }
+            icon: ClockIcon,
+            title: "List in 60 Seconds",
+            description: "Enter your plate, add photos, and let AI write your listing.",
+        },
+        {
+            icon: BellIcon,
+            title: "Smart Alerts",
+            description: "Get notified when cars matching your criteria hit the market.",
+        },
     ];
 
     return (
-        <section className="mt-32">
+        <section className="mt-32" id="features">
             <SectionTitle
-                title="Agent features"
-                description="Design AI assistants that research, plan, and execute tasks — all powered by your prompts."
+                title="A Smarter Way to Trade Cars"
+                description="KiwiCar brings transparency, speed, and intelligence to New Zealand's used car market."
             />
 
-            <div className="flex flex-wrap items-center justify-center gap-6 mt-10 px-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10 px-6 max-w-4xl mx-auto">
                 {featuresData.map((feature, index) => (
                     <motion.div
                         key={index}
                         ref={(el) => (refs.current[index] = el)}
-                        className="hover:-translate-y-0.5 p-6 rounded-xl space-y-4 glass max-w-80 w-full"
+                        className="hover:-translate-y-0.5 p-6 rounded-xl space-y-4 glass w-full"
                         initial={{ y: 150, opacity: 0 }}
                         whileInView={{ y: 0, opacity: 1 }}
                         viewport={{ once: true }}
                         transition={{
-                            delay: index * 0.15,
+                            delay: index * 0.1,
                             type: "spring",
                             stiffness: 320,
                             damping: 70,
@@ -55,11 +60,13 @@ export default function Features() {
                             }
                         }}
                     >
-                        <feature.icon className="size-8.5" />
-                        <h3 className="text-base font-medium text-white">
+                        <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-green-500/20">
+                            <feature.icon className="size-6 text-green-500" />
+                        </div>
+                        <h3 className="text-lg font-medium text-white">
                             {feature.title}
                         </h3>
-                        <p className="text-gray-100 line-clamp-2 pb-2">
+                        <p className="text-gray-100 pb-2">
                             {feature.description}
                         </p>
                     </motion.div>

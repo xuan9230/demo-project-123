@@ -7,47 +7,43 @@ export default function FaqSection() {
     const [isOpen, setIsOpen] = useState(false);
     const data = [
         {
-            question: 'Do I need coding or design experience to use PrebuiltUI?',
-            answer: "Basic coding knowledge (HTML/CSS, Tailwind) helps, but advanced design skills aren't required. You can use components as-is or customize them.",
+            question: 'Is KiwiCar free to use?',
+            answer: 'Yes! Browsing listings, searching vehicles, and viewing NZTA data is completely free. We only charge a small fee when you successfully sell a vehicle through our platform.',
         },
         {
-            question: 'What is PrebuiltUI and how does it help developers and designers?',
-            answer: 'PrebuiltUI provides ready-to-use, customizable UI components and templates, saving time for developers and designers.',
+            question: 'Where does the vehicle data come from?',
+            answer: 'All vehicle information is sourced directly from the New Zealand Transport Agency (NZTA) database. This includes WoF/CoF history, odometer readings, registration status, and any recorded damage or theft reports.',
         },
         {
-            question: 'Can I use PrebuiltUI components in my existing project?',
-            answer: 'Yes, components can be integrated into HTML, React, Next.js, Vue, and other projects using Tailwind CSS.',
+            question: 'How accurate is the AI pricing?',
+            answer: 'Our AI analyzes thousands of recent sales and current listings across New Zealand to provide market-based valuations. While no estimate is perfect, our pricing is typically within 5-10% of actual sale prices and is updated in real-time as market conditions change.',
         },
         {
-            question: 'How customizable are the generated components?',
-            answer: 'Components are highly customizable with Tailwind utility classes, theming, and structural adjustments.',
+            question: 'Can I list my car if it\'s not registered in NZ?',
+            answer: 'Currently, KiwiCar only supports vehicles registered in New Zealand with a valid NZ plate number. This allows us to provide verified NZTA data for every listing. Import vehicles can be listed once they\'re NZ-registered.',
         },
         {
-            question: 'Does PrebuiltUI support team collaboration?',
-            answer: "There's no clear documentation on built-in collaboration features. Check their support for team options.",
-        },
-        {
-            question: 'Can I try PrebuiltUI before purchasing a plan?',
-            answer: 'Yes, you can try PrebuiltUI with full access to features.',
+            question: 'How do I contact a seller?',
+            answer: 'Once you find a car you\'re interested in, click the "Contact Seller" button on the listing page. You can send a message through our secure platform — your phone number and email stay private until you choose to share them.',
         },
     ];
 
     return (
-        <section className='mt-32'>
-            <SectionTitle title="FAQ's" description="Looking for answers to your frequently asked questions? Check out our FAQ's section below to find." />
+        <section className='mt-32' id="faq">
+            <SectionTitle title="Frequently Asked Questions" description="Got questions? We've got answers. Here's what people commonly ask about KiwiCar." />
             <div className='mx-auto mt-12 space-y-4 w-full max-w-xl'>
                 {data.map((item, index) => (
                     <motion.div key={index} className='flex flex-col glass rounded-md'
                         initial={{ y: 150, opacity: 0 }}
                         whileInView={{ y: 0, opacity: 1 }}
                         viewport={{ once: true }}
-                        transition={{ delay: `${index * 0.15}`, type: "spring", stiffness: 320, damping: 70, mass: 1 }}
+                        transition={{ delay: `${index * 0.1}`, type: "spring", stiffness: 320, damping: 70, mass: 1 }}
                     >
                         <h3 className='flex cursor-pointer hover:bg-white/10 transition items-start justify-between gap-4 p-4 font-medium' onClick={() => setIsOpen(isOpen === index ? null : index)}>
                             {item.question}
                             <ChevronDownIcon className={`size-5 transition-all shrink-0 duration-400 ${isOpen === index ? 'rotate-180' : ''}`} />
                         </h3>
-                        <p className={`px-4 text-sm/6 transition-all duration-400 overflow-hidden ${isOpen === index ? 'pt-2 pb-4 max-h-80' : 'max-h-0'}`}>{item.answer}</p>
+                        <p className={`px-4 text-sm/6 text-gray-100 transition-all duration-400 overflow-hidden ${isOpen === index ? 'pt-2 pb-4 max-h-80' : 'max-h-0'}`}>{item.answer}</p>
                     </motion.div>
                 ))}
             </div>
