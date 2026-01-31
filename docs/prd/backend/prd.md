@@ -1,9 +1,83 @@
 # KiwiCar Backend API PRD
 
-**Document Version:** 1.0
+**Document Version:** 2.0 (MVP Simplified)
 **Created:** January 2024
-**Status:** Draft
+**Last Updated:** January 2026
+**Status:** In Progress - MVP Planning
 **Product:** KiwiCar Backend API Server
+
+---
+
+## Document Change Log
+
+| Date | Version | Changes | Updated By |
+|------|---------|---------|------------|
+| Jan 2024 | 1.0 | Initial PRD with full feature set | - |
+| Jan 2026 | 2.0 | Simplified for MVP: Supabase integration, removed Redis/Docker/background jobs | Claude Code |
+
+## Implementation Progress
+
+### ✅ Completed
+- [x] PRD updated for MVP approach
+- [x] Tech stack simplified (Supabase + Express)
+- [x] Database schema designed (PostgreSQL + RLS)
+- [x] Authentication strategy defined (Supabase Auth)
+- [x] API endpoints documented
+
+### 🚧 In Progress
+- [ ] Backend project initialization
+- [ ] Environment setup
+- [ ] Supabase project creation
+
+### 📋 Pending (MVP)
+- [ ] Express server setup with TypeScript
+- [ ] Supabase client integration
+- [ ] Auth middleware implementation
+- [ ] Database table creation in Supabase
+- [ ] API route handlers (listings, users, vehicles, favorites, AI)
+- [ ] NZTA API integration
+- [ ] OpenAI API integration
+- [ ] Image upload handling (Supabase Storage)
+- [ ] Input validation with Zod
+- [ ] Error handling middleware
+- [ ] Logging setup with Winston
+- [ ] Health check endpoint
+- [ ] Manual API testing
+
+### 🔮 Future Enhancements (Post-MVP)
+- [ ] Redis caching
+- [ ] Comprehensive rate limiting
+- [ ] Background jobs (price alerts, cache cleanup)
+- [ ] Docker containerization
+- [ ] CI/CD pipeline
+- [ ] Production deployment
+- [ ] Monitoring & error tracking (Sentry)
+- [ ] Automated testing (unit + integration)
+- [ ] Load testing
+- [ ] Messages feature (P1)
+
+---
+
+## MVP Quick Reference
+
+**Current Phase:** Planning & Setup
+**Approach:** Lean MVP - Simple & Productive
+**Deployment:** Local development only (no Docker)
+
+**Key Decisions:**
+- ✅ **Database & Auth:** Supabase (PostgreSQL + Auth + Storage)
+- ✅ **No Redis caching** (use database queries directly)
+- ✅ **No rate limiting** (rely on Supabase built-in limits)
+- ✅ **No background jobs** (manual triggers for now)
+- ✅ **No Docker/CI/CD** (run Express locally with `pnpm dev`)
+- ✅ **Manual testing** (Postman/Thunder Client)
+
+**Next Steps:**
+1. Create Supabase project
+2. Set up Express TypeScript project structure
+3. Implement auth middleware
+4. Create database tables in Supabase
+5. Build core API endpoints (listings, users, vehicles)
 
 ---
 
@@ -17,19 +91,24 @@ This document defines the requirements for the KiwiCar backend API server — a 
 
 This PRD covers:
 - RESTful API design and endpoints
-- Authentication and authorization
-- Data models and database schema
-- External service integrations (NZTA, AI, Email/SMS)
-- File storage and image handling
-- Caching strategy
+- Authentication via Supabase Auth
+- Data models and database schema (Supabase PostgreSQL)
+- External service integrations (NZTA, AI)
+- File storage and image handling (Supabase Storage)
 - Security requirements
 
-### 1.3 Out of Scope
+### 1.3 Out of Scope (MVP)
 
 - Frontend implementation (see `/docs/prd/frontend/prd.md`)
 - Landing page (see `/docs/prd/landing/prd.md`)
 - Admin dashboard APIs (future phase)
 - Mobile push notifications (future phase)
+- Redis caching and performance optimization (future phase)
+- Background jobs and scheduled tasks (future phase)
+- Comprehensive rate limiting (future phase)
+- Docker containerization (future phase)
+- CI/CD pipeline (future phase)
+- Production deployment (future phase)
 
 ---
 
@@ -40,14 +119,10 @@ This PRD covers:
 | Node.js | 20 LTS | Runtime environment |
 | TypeScript | 5.0+ | Type safety |
 | Express.js | 4.x | Web framework |
-| Prisma | Latest | ORM |
-| MySQL | 8.0+ | Primary database |
-| Redis | 7+ | Caching, sessions, rate limiting |
-| JWT | - | Authentication tokens |
-| bcrypt | - | Password hashing |
+| Supabase | Latest | Database (PostgreSQL) & Auth |
+| @supabase/supabase-js | Latest | Supabase client SDK |
 | Multer | - | File upload handling |
 | Winston | - | Logging |
-| node-cron | - | Scheduled tasks |
 | Zod | - | Request validation |
 
 ### 2.1 Development Tools
@@ -59,8 +134,6 @@ This PRD covers:
 | Prettier | Code formatting |
 | Vitest | Unit testing |
 | Supertest | API integration testing |
-| Docker | Containerization |
-| Docker Compose | Local development environment |
 
 ---
 
@@ -68,18 +141,13 @@ This PRD covers:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Load Balancer                             │
-└─────────────────────────────────────────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────────────┐
 │                     Express.js Application                       │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │                      Middleware                           │   │
-│  │  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐  │   │
-│  │  │ CORS   │ │ Auth   │ │ Rate   │ │ Logger │ │ Error  │  │   │
-│  │  │        │ │ JWT    │ │ Limit  │ │        │ │ Handler│  │   │
-│  │  └────────┘ └────────┘ └────────┘ └────────┘ └────────┘  │   │
+│  │  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐            │   │
+│  │  │ CORS   │ │ Auth   │ │ Logger │ │ Error  │            │   │
+│  │  │        │ │ Supabase│ │        │ │ Handler│            │   │
+│  │  └────────┘ └────────┘ └────────┘ └────────┘            │   │
 │  └──────────────────────────────────────────────────────────┘   │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │                       Routes                              │   │
@@ -90,15 +158,24 @@ This PRD covers:
 │  │  AuthService  ListingService  VehicleService  AIService  │   │
 │  └──────────────────────────────────────────────────────────┘   │
 │  ┌──────────────────────────────────────────────────────────┐   │
-│  │                    Prisma ORM                             │   │
+│  │                  Supabase Client                          │   │
 │  └──────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
-         │                    │                    │
-         ▼                    ▼                    ▼
-   ┌──────────┐        ┌──────────┐        ┌──────────┐
-   │  MySQL   │        │  Redis   │        │ S3 / R2  │
-   │ Database │        │  Cache   │        │ Storage  │
-   └──────────┘        └──────────┘        └──────────┘
+                                │
+                                ▼
+                   ┌──────────────────────┐
+                   │      Supabase        │
+                   │  ┌────────────────┐  │
+                   │  │   PostgreSQL   │  │
+                   │  │    Database    │  │
+                   │  └────────────────┘  │
+                   │  ┌────────────────┐  │
+                   │  │      Auth      │  │
+                   │  └────────────────┘  │
+                   │  ┌────────────────┐  │
+                   │  │    Storage     │  │
+                   │  └────────────────┘  │
+                   └──────────────────────┘
 ```
 
 ---
@@ -164,143 +241,31 @@ This PRD covers:
 
 ### 5.1 Authentication
 
-#### POST /auth/register
+**Note:** Authentication is handled by Supabase Auth. The frontend will use Supabase client SDK directly for auth operations. The backend API will verify Supabase JWT tokens.
 
-Register a new user account.
+**Supabase Auth Features Used:**
+- Email/password authentication
+- Email verification
+- Password reset
+- JWT token management
+- Session handling
 
-**Request Body:**
-```json
-{
-  "email": "user@example.com",  // required if no phone
-  "phone": "+64211234567",      // required if no email
-  "password": "securePass123",
-  "nickname": "JohnDoe"
-}
-```
+**Backend Middleware:**
+The Express app will have an auth middleware that:
+1. Extracts JWT token from `Authorization: Bearer <token>` header
+2. Verifies token with Supabase using `supabase.auth.getUser(token)`
+3. Attaches user info to `req.user` for protected routes
 
-**Response (201):**
-```json
-{
-  "success": true,
-  "data": {
-    "userId": "uuid",
-    "message": "Verification code sent"
-  }
-}
-```
-
-**Business Rules:**
-- Either email or phone required
-- Password: min 8 chars, must contain letter and number
-- Phone must be valid NZ format (+64)
-- Duplicate email/phone returns 409
-
----
-
-#### POST /auth/verify
-
-Verify email or phone with OTP.
-
-**Request Body:**
-```json
-{
-  "email": "user@example.com",  // or phone
-  "code": "123456"
-}
-```
-
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "accessToken": "jwt_token",
-    "refreshToken": "refresh_token",
-    "user": { ... }
-  }
-}
-```
-
----
-
-#### POST /auth/login
-
-Login with credentials.
-
-**Request Body:**
-```json
-{
-  "email": "user@example.com",  // or phone
-  "password": "securePass123"
-}
-```
-
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "accessToken": "jwt_token",
-    "refreshToken": "refresh_token",
-    "expiresIn": 3600,
-    "user": {
-      "id": "uuid",
-      "email": "user@example.com",
-      "nickname": "JohnDoe",
-      "avatar": "url",
-      "region": "Auckland"
-    }
-  }
-}
-```
-
----
-
-#### POST /auth/refresh
-
-Refresh access token.
-
-**Request Body:**
-```json
-{
-  "refreshToken": "refresh_token"
-}
-```
-
----
-
-#### POST /auth/logout
-
-Logout and invalidate tokens.
-
-**Headers:** `Authorization: Bearer <token>`
-
----
-
-#### POST /auth/forgot-password
-
-Request password reset.
-
-**Request Body:**
-```json
-{
-  "email": "user@example.com"  // or phone
-}
-```
-
----
-
-#### POST /auth/reset-password
-
-Reset password with token.
-
-**Request Body:**
-```json
-{
-  "token": "reset_token",
-  "password": "newSecurePass123"
-}
-```
+**Protected Routes:**
+All routes requiring authentication will use the auth middleware:
+- `GET /users/me`
+- `PUT /users/me`
+- `POST /listings`
+- `PUT /listings/:id`
+- `DELETE /listings/:id`
+- `GET /favorites`
+- `POST /favorites`
+- etc.
 
 ---
 
@@ -815,174 +780,159 @@ Send message in conversation.
 
 ## 6. Data Models
 
-### 6.1 Prisma Schema
+### 6.1 Database Schema (Supabase PostgreSQL)
 
-```prisma
-model User {
-  id            String    @id @default(uuid())
-  email         String?   @unique
-  phone         String?   @unique
-  passwordHash  String
-  nickname      String
-  avatar        String?
-  region        String?
-  showPhone     Boolean   @default(true)
-  isVerified    Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+**Note:** User authentication is handled by Supabase Auth (`auth.users` table). We create a `profiles` table linked to Supabase auth users.
 
-  listings      Listing[]
-  favorites     Favorite[]
-  sentMessages     Message[] @relation("SentMessages")
-  receivedMessages Message[] @relation("ReceivedMessages")
-}
+```sql
+-- Profiles table (extends Supabase auth.users)
+CREATE TABLE profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  nickname TEXT NOT NULL,
+  avatar TEXT,
+  region TEXT,
+  show_phone BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-model Listing {
-  id              String    @id @default(uuid())
-  userId          String
-  user            User      @relation(fields: [userId], references: [id])
+-- Listings table
+CREATE TABLE listings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
 
-  plateNumber     String
-  make            String
-  model           String
-  variant         String?
-  year            Int
-  mileage         Int
-  price           Decimal   @db.Decimal(10, 2)
-  priceNegotiable Boolean   @default(false)
-  description     String    @db.Text
-  aiDescription   String?   @db.Text
-  aiPriceMin      Decimal?  @db.Decimal(10, 2)
-  aiPriceMax      Decimal?  @db.Decimal(10, 2)
-  aiPriceRec      Decimal?  @db.Decimal(10, 2)
+  plate_number TEXT NOT NULL,
+  make TEXT NOT NULL,
+  model TEXT NOT NULL,
+  variant TEXT,
+  year INTEGER NOT NULL,
+  mileage INTEGER NOT NULL,
+  price DECIMAL(10, 2) NOT NULL,
+  price_negotiable BOOLEAN DEFAULT false,
+  description TEXT NOT NULL,
+  ai_description TEXT,
+  ai_price_min DECIMAL(10, 2),
+  ai_price_max DECIMAL(10, 2),
+  ai_price_rec DECIMAL(10, 2),
 
-  fuelType        FuelType
-  transmission    Transmission
-  bodyType        String?
-  color           String?
-  engineCC        Int?
-  region          String
+  fuel_type TEXT NOT NULL CHECK (fuel_type IN ('petrol', 'diesel', 'hybrid', 'electric')),
+  transmission TEXT NOT NULL CHECK (transmission IN ('auto', 'manual')),
+  body_type TEXT,
+  color TEXT,
+  engine_cc INTEGER,
+  region TEXT NOT NULL,
 
-  status          ListingStatus @default(ACTIVE)
-  wofExpiry       DateTime?
-  regoExpiry      DateTime?
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'sold', 'removed')),
+  wof_expiry DATE,
+  rego_expiry DATE,
 
-  viewCount       Int       @default(0)
+  view_count INTEGER DEFAULT 0,
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-  images          ListingImage[]
-  priceHistory    PriceHistory[]
-  favorites       Favorite[]
+CREATE INDEX idx_listings_status_created ON listings(status, created_at);
+CREATE INDEX idx_listings_make_model ON listings(make, model);
+CREATE INDEX idx_listings_region ON listings(region);
+CREATE INDEX idx_listings_price ON listings(price);
 
-  @@index([status, createdAt])
-  @@index([make, model])
-  @@index([region])
-  @@index([price])
-}
+-- Listing images table
+CREATE TABLE listing_images (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  listing_id UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  "order" INTEGER NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-model ListingImage {
-  id        String   @id @default(uuid())
-  listingId String
-  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  url       String
-  order     Int
-  createdAt DateTime @default(now())
-}
+-- Price history table
+CREATE TABLE price_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  listing_id UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+  price DECIMAL(10, 2) NOT NULL,
+  changed_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-model PriceHistory {
-  id        String   @id @default(uuid())
-  listingId String
-  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  price     Decimal  @db.Decimal(10, 2)
-  changedAt DateTime @default(now())
-}
+-- Favorites table
+CREATE TABLE favorites (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  listing_id UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+  price_alert BOOLEAN DEFAULT false,
+  target_price DECIMAL(10, 2),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
 
-model Favorite {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  listingId   String
-  listing     Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  priceAlert  Boolean  @default(false)
-  targetPrice Decimal? @db.Decimal(10, 2)
-  createdAt   DateTime @default(now())
+  UNIQUE(user_id, listing_id)
+);
 
-  @@unique([userId, listingId])
-}
+-- Vehicle cache table
+CREATE TABLE vehicle_cache (
+  plate_number TEXT PRIMARY KEY,
+  make TEXT NOT NULL,
+  model TEXT NOT NULL,
+  variant TEXT,
+  year INTEGER NOT NULL,
+  first_registered DATE,
+  wof_status TEXT NOT NULL,
+  wof_expiry DATE,
+  rego_status TEXT NOT NULL,
+  rego_expiry DATE,
+  odometer_readings JSONB,
+  engine_cc INTEGER,
+  fuel_type TEXT,
+  body_style TEXT,
+  color TEXT,
+  fetched_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-model VehicleCache {
-  plateNumber      String   @id
-  make             String
-  model            String
-  variant          String?
-  year             Int
-  firstRegistered  DateTime?
-  wofStatus        String
-  wofExpiry        DateTime?
-  regoStatus       String
-  regoExpiry       DateTime?
-  odometerReadings Json
-  engineCC         Int?
-  fuelType         String?
-  bodyStyle        String?
-  color            String?
-  fetchedAt        DateTime @default(now())
+CREATE INDEX idx_vehicle_cache_fetched ON vehicle_cache(fetched_at);
 
-  @@index([fetchedAt])
-}
+-- Messages table (P1 feature)
+CREATE TABLE messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sender_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  receiver_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  listing_id UUID REFERENCES listings(id) ON DELETE SET NULL,
+  content TEXT NOT NULL,
+  is_read BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-model Message {
-  id           String   @id @default(uuid())
-  senderId     String
-  sender       User     @relation("SentMessages", fields: [senderId], references: [id])
-  receiverId   String
-  receiver     User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
-  listingId    String?
-  content      String   @db.Text
-  isRead       Boolean  @default(false)
-  createdAt    DateTime @default(now())
+CREATE INDEX idx_messages_sender_receiver ON messages(sender_id, receiver_id);
+CREATE INDEX idx_messages_receiver_unread ON messages(receiver_id, is_read);
 
-  @@index([senderId, receiverId])
-  @@index([receiverId, isRead])
-}
+-- Enable Row Level Security (RLS)
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE listings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE listing_images ENABLE ROW LEVEL SECURITY;
+ALTER TABLE favorites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 
-model VerificationCode {
-  id        String   @id @default(uuid())
-  target    String   // email or phone
-  code      String
-  type      VerificationType
-  expiresAt DateTime
-  attempts  Int      @default(0)
-  createdAt DateTime @default(now())
+-- RLS Policies (examples)
+-- Users can read their own profile
+CREATE POLICY "Users can read own profile" ON profiles
+  FOR SELECT USING (auth.uid() = id);
 
-  @@index([target, type])
-}
+-- Users can update their own profile
+CREATE POLICY "Users can update own profile" ON profiles
+  FOR UPDATE USING (auth.uid() = id);
 
-enum FuelType {
-  PETROL
-  DIESEL
-  HYBRID
-  ELECTRIC
-}
+-- Anyone can read active listings
+CREATE POLICY "Anyone can read active listings" ON listings
+  FOR SELECT USING (status = 'active');
 
-enum Transmission {
-  AUTO
-  MANUAL
-}
+-- Users can create their own listings
+CREATE POLICY "Users can create own listings" ON listings
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-enum ListingStatus {
-  ACTIVE
-  SOLD
-  REMOVED
-}
+-- Users can update their own listings
+CREATE POLICY "Users can update own listings" ON listings
+  FOR UPDATE USING (auth.uid() = user_id);
 
-enum VerificationType {
-  REGISTRATION
-  LOGIN
-  PASSWORD_RESET
-}
+-- Users can delete their own listings
+CREATE POLICY "Users can delete own listings" ON listings
+  FOR DELETE USING (auth.uid() = user_id);
 ```
 
 ---
@@ -995,33 +945,17 @@ enum VerificationType {
 |------|---------|
 | Purpose | Fetch official vehicle information |
 | Data | WOF, Rego, odometer, vehicle specs |
-| Caching | 24 hours in Redis + VehicleCache table |
+| Caching | 24 hours in VehicleCache table |
 | Fallback | Return cached data if API unavailable |
 
-### 7.2 Email Service (SendGrid/Mailgun)
-
-| Template | Trigger |
-|----------|---------|
-| Verification Code | Registration, login OTP |
-| Password Reset | Forgot password request |
-| Price Drop Alert | Favorited listing price reduced |
-| Welcome Email | Successful registration |
-
-### 7.3 SMS Service (Twilio/AWS SNS)
-
-| Template | Trigger |
-|----------|---------|
-| OTP Code | Phone registration, login |
-| Password Reset OTP | Phone-based reset |
-
-### 7.4 OpenAI API
+### 7.2 OpenAI API
 
 | Endpoint | Purpose |
 |----------|---------|
 | Chat Completions | Generate listing descriptions |
-| Vision | Analyze car images (P1) |
+| Vision | Analyze car images (future) |
 
-### 7.5 Cloud Storage (S3/R2)
+### 7.3 Supabase Storage
 
 | Bucket | Content |
 |--------|---------|
@@ -1034,6 +968,8 @@ enum VerificationType {
 - Generate thumbnail (400px)
 - Convert to WebP format
 
+**Note:** Email/SMS services are handled by Supabase Auth (email verification, password reset, etc.)
+
 ---
 
 ## 8. Security Requirements
@@ -1042,18 +978,17 @@ enum VerificationType {
 
 | Requirement | Implementation |
 |-------------|----------------|
-| Password Hashing | bcrypt with cost factor 12 |
-| JWT Access Token | 1 hour expiry, RS256 |
-| Refresh Token | 30 days expiry, stored in DB |
-| Token Refresh | Silent refresh before expiry |
+| Password Hashing | Handled by Supabase Auth (bcrypt) |
+| JWT Access Token | Supabase JWT, verified on each request |
+| Refresh Token | Managed by Supabase Auth |
+| Token Verification | `supabase.auth.getUser(token)` |
 
-### 8.2 Rate Limiting
+### 8.2 Rate Limiting (Future Enhancement)
+
+For MVP, rely on Supabase's built-in rate limiting. Future implementation:
 
 | Endpoint | Limit |
 |----------|-------|
-| POST /auth/login | 5/minute per IP |
-| POST /auth/register | 3/minute per IP |
-| POST /auth/verify | 5/minute per target |
 | GET /vehicles/:plate | 3/day (guest), 10/day (user) |
 | POST /ai/* | 20/hour per user |
 | General API | 100/minute per user |
@@ -1061,7 +996,7 @@ enum VerificationType {
 ### 8.3 Input Validation
 
 - All inputs validated with Zod schemas
-- SQL injection prevention via Prisma parameterized queries
+- SQL injection prevention via Supabase client parameterized queries
 - XSS prevention via output encoding
 - File upload validation (type, size)
 
@@ -1069,19 +1004,21 @@ enum VerificationType {
 
 | Data | Protection |
 |------|------------|
-| Passwords | bcrypt hash, never stored plain |
+| Passwords | Handled by Supabase Auth |
 | Phone/Email | Masked in public responses |
-| JWT secrets | Environment variables, rotated quarterly |
-| Database | Encrypted at rest, TLS in transit |
+| JWT secrets | Managed by Supabase |
+| Database | Encrypted at rest, TLS in transit (Supabase) |
+| Row Level Security | Enabled on all tables |
 
 ### 8.5 CORS Configuration
 
 ```typescript
 {
   origin: [
+    'http://localhost:5173',  // Frontend dev
+    'http://localhost:3000',  // Landing page dev
     'https://kiwicar.co.nz',
-    'https://www.kiwicar.co.nz',
-    'https://staging.kiwicar.co.nz'
+    'https://www.kiwicar.co.nz'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
@@ -1090,58 +1027,25 @@ enum VerificationType {
 
 ---
 
-## 9. Caching Strategy
+## 9. Background Jobs (Future Enhancement)
 
-### 9.1 Redis Cache Keys
-
-| Key Pattern | TTL | Data |
-|-------------|-----|------|
-| `vehicle:{plate}` | 24h | NZTA vehicle data |
-| `listing:{id}` | 5m | Listing details |
-| `listings:search:{hash}` | 2m | Search results |
-| `user:{id}:favorites` | 10m | User favorites list |
-| `ratelimit:{ip}:{endpoint}` | varies | Rate limit counters |
-
-### 9.2 Cache Invalidation
-
-| Event | Invalidate |
-|-------|------------|
-| Listing updated | `listing:{id}`, `listings:search:*` |
-| Listing deleted | `listing:{id}`, `listings:search:*` |
-| Favorite added/removed | `user:{id}:favorites` |
+**Note:** For MVP, background jobs are not implemented. Future enhancements can include:
+- Price alert checking (every 15 minutes)
+- Vehicle cache cleanup (daily)
+- Stale listing reminders (daily)
+- Analytics aggregation (daily)
 
 ---
 
-## 10. Background Jobs
+## 10. Logging & Monitoring
 
-### 10.1 Scheduled Jobs (node-cron)
-
-| Job | Schedule | Task |
-|-----|----------|------|
-| Price Alert Check | Every 15 min | Check price changes, send alerts |
-| Vehicle Cache Cleanup | Daily 3am | Remove cache older than 24h |
-| Stale Listing Reminder | Daily 9am | Remind sellers of 30-day old listings |
-| Analytics Aggregation | Daily 2am | Aggregate daily view/favorite counts |
-
-### 10.2 Event-Driven Jobs
-
-| Trigger | Job |
-|---------|-----|
-| Listing price updated | Send price alerts to subscribers |
-| User registered | Send welcome email |
-| Listing created | Generate AI pricing suggestion |
-
----
-
-## 11. Logging & Monitoring
-
-### 11.1 Logging (Winston)
+### 10.1 Logging (Winston)
 
 | Level | Usage |
 |-------|-------|
 | error | Exceptions, failed operations |
-| warn | Deprecations, rate limits hit |
-| info | API requests, auth events |
+| warn | Deprecations, issues |
+| info | API requests, important events |
 | debug | Detailed debugging (dev only) |
 
 **Log Format:**
@@ -1157,7 +1061,7 @@ enum VerificationType {
 }
 ```
 
-### 11.2 Health Check
+### 10.2 Health Check
 
 **GET /health**
 ```json
@@ -1165,38 +1069,31 @@ enum VerificationType {
   "status": "healthy",
   "version": "1.0.0",
   "uptime": 86400,
-  "database": "connected",
-  "redis": "connected"
+  "supabase": "connected"
 }
 ```
 
-### 11.3 Monitoring Integration
+### 10.3 Monitoring (Future Enhancement)
 
-- Sentry for error tracking
+For MVP, use basic console logging. Future enhancements:
+- Error tracking (Sentry)
 - Application metrics (request count, latency, error rate)
 - Database query performance
 
 ---
 
-## 12. Environment Variables
+## 11. Environment Variables
 
 ```env
 # Server
-NODE_ENV=production
+NODE_ENV=development
 PORT=3001
 API_VERSION=v1
 
-# Database
-DATABASE_URL=mysql://user:pass@host:3306/kiwicar
-
-# Redis
-REDIS_URL=redis://localhost:6379
-
-# JWT
-JWT_SECRET=your-secret-key
-JWT_REFRESH_SECRET=your-refresh-secret
-JWT_EXPIRES_IN=1h
-JWT_REFRESH_EXPIRES_IN=30d
+# Supabase
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
 # External APIs
 NZTA_API_KEY=
@@ -1204,99 +1101,97 @@ NZTA_API_URL=
 
 OPENAI_API_KEY=
 
-SENDGRID_API_KEY=
-SENDGRID_FROM_EMAIL=noreply@kiwicar.co.nz
-
-TWILIO_ACCOUNT_SID=
-TWILIO_AUTH_TOKEN=
-TWILIO_FROM_NUMBER=
-
-# Storage
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_REGION=ap-southeast-2
-AWS_S3_BUCKET=kiwicar-images
-
-# Monitoring
-SENTRY_DSN=
+# CORS
+FRONTEND_URL=http://localhost:5173
+LANDING_URL=http://localhost:3000
 ```
 
 ---
 
-## 13. Deployment
+## 12. Deployment
 
-### 13.1 Infrastructure
+### 12.1 Local Development (MVP)
 
-| Component | Service |
-|-----------|---------|
-| API Server | AWS ECS / Railway / Render |
-| Database | AWS RDS MySQL / PlanetScale |
-| Redis | AWS ElastiCache / Upstash |
-| Storage | AWS S3 / Cloudflare R2 |
-| CDN | CloudFront / Cloudflare |
+For MVP, run the Express server locally:
 
-### 13.2 CI/CD Pipeline
-
-```yaml
-# GitHub Actions workflow
-on:
-  push:
-    branches: [main]
-
-jobs:
-  test:
-    - Run linting
-    - Run unit tests
-    - Run integration tests
-
-  build:
-    - Build Docker image
-    - Push to container registry
-
-  deploy:
-    - Deploy to staging (on PR merge)
-    - Deploy to production (on release tag)
+```bash
+cd kiwicar-backend
+pnpm install
+pnpm dev  # Start dev server with hot reload
 ```
 
-### 13.3 Database Migrations
+**Prerequisites:**
+- Node.js 20 LTS
+- pnpm
+- Supabase project created
 
-- Use Prisma Migrate for schema changes
-- Run migrations in CI before deployment
-- Maintain backward compatibility during rollout
+### 12.2 Production Deployment (Future)
+
+When ready to deploy to production:
+
+| Component | Service Options |
+|-----------|----------------|
+| API Server | Railway / Render / Vercel |
+| Database | Supabase (included) |
+| Storage | Supabase Storage (included) |
+
+### 12.3 Database Migrations
+
+- Use Supabase migrations (SQL files)
+- Apply migrations via Supabase CLI or Dashboard
+- Track migrations in version control
 
 ---
 
-## 14. Performance Requirements
+## 13. Performance Requirements (Future)
+
+For MVP, focus on functionality over performance. Future targets:
 
 | Metric | Target |
 |--------|--------|
-| API Response Time (p95) | < 200ms |
-| API Response Time (p99) | < 500ms |
-| Database Query Time (avg) | < 50ms |
-| Concurrent Users | 1000+ |
-| Uptime | 99.9% |
+| API Response Time (p95) | < 500ms |
+| Database Query Time (avg) | < 100ms |
+| Concurrent Users | 100+ |
 
 ---
 
-## 15. Testing Requirements
+## 14. Testing Requirements
 
-### 15.1 Unit Tests
+### 14.1 Unit Tests (MVP)
 
-- Service layer functions
-- Utility functions
+- Critical service layer functions
 - Validation schemas
+- Utility functions
 
-### 15.2 Integration Tests
+### 14.2 Integration Tests (Future)
 
 - API endpoint responses
 - Database operations
 - External service mocks
 
-### 15.3 Load Tests
+### 14.3 Manual Testing (MVP)
 
-- Simulate 1000 concurrent users
-- Test search endpoint under load
-- Verify rate limiting works correctly
+- Test all API endpoints with Postman/Thunder Client
+- Verify auth flow works correctly
+- Test file uploads
+
+---
+
+## 15. MVP Simplifications Summary
+
+This MVP version simplifies the original PRD:
+
+1. **Authentication**: Use Supabase Auth instead of custom JWT/bcrypt implementation
+2. **Database**: PostgreSQL via Supabase instead of MySQL with Prisma
+3. **Caching**: No Redis caching (future enhancement)
+4. **Rate Limiting**: Rely on Supabase built-in limits (future enhancement)
+5. **Background Jobs**: No scheduled jobs (future enhancement)
+6. **Email/SMS**: Handled by Supabase Auth
+7. **Deployment**: Local development only, no Docker/CI/CD
+8. **Monitoring**: Basic console logging instead of Sentry
+9. **Testing**: Manual testing focus instead of comprehensive test suite
+
+This allows rapid development of core features while maintaining ability to scale later.
 
 ---
 
