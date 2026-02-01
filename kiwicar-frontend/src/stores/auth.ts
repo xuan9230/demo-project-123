@@ -1,24 +1,34 @@
 import { create } from 'zustand'
+import type { Session } from '@supabase/supabase-js'
 import type { User } from '@/types'
-import { mockUser } from '@/data/mock'
 
 interface AuthState {
   user: User | null
+  session: Session | null
   isAuthenticated: boolean
+  isLoading: boolean
+  setSession: (session: Session | null) => void
   setUser: (user: User | null) => void
   updateUser: (updates: Partial<User>) => void
-  logout: () => void
+  setLoading: (loading: boolean) => void
+  clearAuth: () => void
 }
 
-// Always start with mock user logged in (per requirements)
 export const useAuthStore = create<AuthState>((set) => ({
-  user: mockUser,
-  isAuthenticated: true,
+  user: null,
+  session: null,
+  isAuthenticated: false,
+  isLoading: true,
+
+  setSession: (session) =>
+    set({
+      session,
+      isAuthenticated: !!session?.user,
+    }),
 
   setUser: (user) =>
     set({
       user,
-      isAuthenticated: !!user,
     }),
 
   updateUser: (updates) =>
@@ -26,9 +36,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       user: state.user ? { ...state.user, ...updates } : null,
     })),
 
-  logout: () =>
+  setLoading: (loading) =>
+    set({
+      isLoading: loading,
+    }),
+
+  clearAuth: () =>
     set({
       user: null,
+      session: null,
       isAuthenticated: false,
     }),
 }))

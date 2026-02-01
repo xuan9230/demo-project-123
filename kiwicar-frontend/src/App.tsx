@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Layout } from '@/components/layout/Layout'
+import { RequireAuth } from '@/components/auth/RequireAuth'
 
 // Pages
 import HomePage from '@/pages/home/HomePage'
@@ -11,6 +12,10 @@ import FavoritesPage from '@/pages/favorites/FavoritesPage'
 import MyListingsPage from '@/pages/my-listings/MyListingsPage'
 import AccountPage from '@/pages/account/AccountPage'
 import NotFoundPage from '@/pages/NotFoundPage'
+import LoginPage from '@/pages/auth/LoginPage'
+import RegisterPage from '@/pages/auth/RegisterPage'
+import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
+import ResetPasswordPage from '@/pages/auth/ResetPasswordPage'
 
 function App() {
   return (
@@ -22,10 +27,14 @@ function App() {
           <Route path="/listing/:id" element={<ListingDetailPage />} />
           <Route path="/plate-check" element={<PlateCheckPage />} />
           <Route path="/plate-check/:plateNumber" element={<PlateCheckPage />} />
-          <Route path="/sell/*" element={<SellPage />} />
-          <Route path="/favorites" element={<FavoritesPage />} />
-          <Route path="/my-listings" element={<MyListingsPage />} />
-          <Route path="/account/*" element={<AccountPage />} />
+          <Route path="/sell/*" element={<RequireAuth><SellPage /></RequireAuth>} />
+          <Route path="/favorites" element={<RequireAuth><FavoritesPage /></RequireAuth>} />
+          <Route path="/my-listings" element={<RequireAuth><MyListingsPage /></RequireAuth>} />
+          <Route path="/account/*" element={<RequireAuth><AccountPage /></RequireAuth>} />
+          <Route path="/auth/login" element={<LoginPage />} />
+          <Route path="/auth/register" element={<RegisterPage />} />
+          <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

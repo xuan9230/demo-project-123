@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useAuthStore } from '@/stores/auth'
+import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -20,6 +21,11 @@ export function Navbar() {
   const { user } = useAuthStore()
   const [searchQuery, setSearchQuery] = useState('')
   const navigate = useNavigate()
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    navigate('/')
+  }
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -66,7 +72,7 @@ export function Navbar() {
             </Link>
           </Button>
 
-          {user && (
+          {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
@@ -94,9 +100,20 @@ export function Navbar() {
                   <Link to="/account">Account Settings</Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive">Sign Out</DropdownMenuItem>
+                <DropdownMenuItem className="text-destructive" onClick={handleSignOut}>
+                  Sign Out
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          ) : (
+            <div className="hidden sm:flex items-center gap-2">
+              <Button asChild variant="ghost">
+                <Link to="/auth/login">Sign In</Link>
+              </Button>
+              <Button asChild>
+                <Link to="/auth/register">Get Started</Link>
+              </Button>
+            </div>
           )}
         </div>
       </div>
