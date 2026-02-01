@@ -1,9 +1,9 @@
-import { LucideIcon } from 'lucide-react'
+import type { ComponentType, SVGProps } from 'react'
 import { Button } from '@/components/ui/button'
 import { Link } from 'react-router-dom'
 
 interface EmptyStateProps {
-  icon: LucideIcon
+  icon: ComponentType<SVGProps<SVGSVGElement>>
   title: string
   description: string
   action?: {
