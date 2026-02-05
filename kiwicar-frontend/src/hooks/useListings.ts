@@ -1,7 +1,7 @@
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query'
 import type { Listing, SearchFilters, SortOption, PaginatedResponse } from '@/types'
 import { mockListings, mockUserListings } from '@/data/mock'
-import { delay } from '@/lib/utils'
+import { apiGet } from '@/lib/api'
 
 const PAGE_SIZE = 20
 
@@ -103,21 +103,53 @@ async function fetchListings(
   filters: SearchFilters,
   sort: SortOption
 ): Promise<PaginatedResponse<Listing>> {
-  await delay(300 + Math.random() * 200) // Simulate network delay
+  const params = new URLSearchParams()
+  params.set('page', String(page))
+  params.set('perPage', String(PAGE_SIZE))
 
-  const filtered = filterListings(mockListings, filters, sort)
-  const start = (page - 1) * PAGE_SIZE
-  const end = start + PAGE_SIZE
+  if (filters.query) params.set('query', filters.query)
+  if (filters.makes?.length) params.set('makes', filters.makes.join(','))
+  if (filters.models?.length) params.set('models', filters.models.join(','))
+  if (filters.minPrice !== undefined) params.set('minPrice', String(filters.minPrice))
+  if (filters.maxPrice !== undefined) params.set('maxPrice', String(filters.maxPrice))
+  if (filters.minYear !== undefined) params.set('minYear', String(filters.minYear))
+  if (filters.maxYear !== undefined) params.set('maxYear', String(filters.maxYear))
+  if (filters.minMileage !== undefined) params.set('minMileage', String(filters.minMileage))
+  if (filters.maxMileage !== undefined) params.set('maxMileage', String(filters.maxMileage))
+  if (filters.regions?.length) params.set('regions', filters.regions.join(','))
+  if (filters.fuelTypes?.length) params.set('fuelTypes', filters.fuelTypes.join(','))
+  if (filters.transmissions?.length) params.set('transmissions', filters.transmissions.join(','))
+  if (filters.bodyTypes?.length) params.set('bodyTypes', filters.bodyTypes.join(','))
+  if (sort) params.set('sort', sort)
 
-  return {
-    data: filtered.slice(start, end),
-    meta: {
-      page,
-      perPage: PAGE_SIZE,
-      total: filtered.length,
-      totalPages: Math.ceil(filtered.length / PAGE_SIZE),
-    },
+  type ListingsResponse =
+    | Listing[]
+    | PaginatedResponse<Listing>
+    | { success: boolean; data: Listing[] | PaginatedResponse<Listing> }
+
+  const raw = await apiGet<ListingsResponse>(`/api/v1/listings?${params.toString()}`)
+  const payload = (raw as { success?: boolean; data?: unknown }).success ? (raw as any).data : raw
+
+  if (payload && typeof payload === 'object' && 'data' in (payload as any) && 'meta' in (payload as any)) {
+    return payload as PaginatedResponse<Listing>
   }
+
+  if (Array.isArray(payload)) {
+    const filtered = filterListings(payload, filters, sort)
+    const start = (page - 1) * PAGE_SIZE
+    const end = start + PAGE_SIZE
+    return {
+      data: filtered.slice(start, end),
+      meta: {
+        page,
+        perPage: PAGE_SIZE,
+        total: filtered.length,
+        totalPages: Math.ceil(filtered.length / PAGE_SIZE),
+      },
+    }
+  }
+
+  throw new Error('Unexpected listings response shape from API.')
 }
 
 export function useListings(filters: SearchFilters = {}, sort: SortOption = 'recommended') {
