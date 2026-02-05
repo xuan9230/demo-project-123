@@ -4,6 +4,7 @@ import { supabase } from "../config/supabase";
 
 export interface AuthenticatedRequest extends Request {
   user?: User;
+  accessToken?: string;
 }
 
 export const requireAuth = async (
@@ -36,5 +37,30 @@ export const requireAuth = async (
   }
 
   req.user = data.user;
+  req.accessToken = token;
+  return next();
+};
+
+export const optionalAuth = async (
+  req: AuthenticatedRequest,
+  _res: Response,
+  next: NextFunction
+) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return next();
+  }
+
+  const [scheme, token] = authHeader.split(" ");
+  if (scheme !== "Bearer" || !token) {
+    return next();
+  }
+
+  const { data } = await supabase.auth.getUser(token);
+  if (data?.user) {
+    req.user = data.user;
+    req.accessToken = token;
+  }
+
   return next();
 };
