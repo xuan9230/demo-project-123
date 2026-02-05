@@ -2,7 +2,7 @@
 
 **Document Version:** 2.0 (MVP Simplified)
 **Created:** January 2024
-**Last Updated:** January 2026
+**Last Updated:** February 2026
 **Status:** In Progress - MVP Planning
 **Product:** KiwiCar Backend API Server
 
@@ -14,6 +14,7 @@
 |------|---------|---------|------------|
 | Jan 2024 | 1.0 | Initial PRD with full feature set | - |
 | Jan 2026 | 2.0 | Simplified for MVP: Supabase integration, removed Redis/Docker/background jobs | Claude Code |
+| Feb 2026 | 2.1 | Auth moved fully to Supabase client on frontend; backend auth endpoints removed | Claude Code |
 
 ## Implementation Progress
 
@@ -23,25 +24,25 @@
 - [x] Database schema designed (PostgreSQL + RLS)
 - [x] Authentication strategy defined (Supabase Auth)
 - [x] API endpoints documented
+- [x] Backend project initialization (Express + TypeScript scaffold)
+- [x] Environment setup (env validation + .env.example)
+- [x] Supabase client integration (server-side)
+- [x] Auth middleware implementation (JWT verification)
+- [x] Base server setup (/api/v1 router, health check, error handler)
+- [x] Route modules wired with MVP + P1 stubs
 
 ### 🚧 In Progress
-- [ ] Backend project initialization
-- [ ] Environment setup
 - [ ] Supabase project creation
+ - [ ] Confirm Supabase RLS policies for profiles, listings, favorites
 
 ### 📋 Pending (MVP)
-- [ ] Express server setup with TypeScript
-- [ ] Supabase client integration
-- [ ] Auth middleware implementation
 - [ ] Database table creation in Supabase
-- [ ] API route handlers (listings, users, vehicles, favorites, AI)
+- [ ] API route handlers (listings, vehicles, favorites, AI)
 - [ ] NZTA API integration
 - [ ] OpenAI API integration
 - [ ] Image upload handling (Supabase Storage)
 - [ ] Input validation with Zod
-- [ ] Error handling middleware
 - [ ] Logging setup with Winston
-- [ ] Health check endpoint
 - [ ] Manual API testing
 
 ### 🔮 Future Enhancements (Post-MVP)
@@ -66,6 +67,7 @@
 
 **Key Decisions:**
 - ✅ **Database & Auth:** Supabase (PostgreSQL + Auth + Storage)
+- ✅ **Frontend handles auth directly** via Supabase client SDK (no backend auth endpoints)
 - ✅ **No Redis caching** (use database queries directly)
 - ✅ **No rate limiting** (rely on Supabase built-in limits)
 - ✅ **No background jobs** (manual triggers for now)
@@ -75,9 +77,9 @@
 **Next Steps:**
 1. Create Supabase project
 2. Set up Express TypeScript project structure
-3. Implement auth middleware
-4. Create database tables in Supabase
-5. Build core API endpoints (listings, users, vehicles)
+3. Implement auth middleware (JWT verification only)
+4. Create database tables + RLS policies in Supabase
+5. Build core API endpoints (listings, vehicles, favorites, AI)
 
 ---
 
@@ -151,7 +153,7 @@ This PRD covers:
 │  └──────────────────────────────────────────────────────────┘   │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │                       Routes                              │   │
-│  │  /auth  /users  /listings  /vehicles  /favorites  /ai    │   │
+│  │  /users  /listings  /vehicles  /favorites  /ai           │   │
 │  └──────────────────────────────────────────────────────────┘   │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │                      Services                             │   │
@@ -241,7 +243,7 @@ This PRD covers:
 
 ### 5.1 Authentication
 
-**Note:** Authentication is handled by Supabase Auth. The frontend will use Supabase client SDK directly for auth operations. The backend API will verify Supabase JWT tokens.
+**Note:** Authentication is handled by Supabase Auth. The frontend uses the Supabase client SDK directly for auth operations (sign up, sign in, password reset). **No backend `/auth` endpoints are required for MVP.** The backend API only verifies Supabase JWT tokens for protected routes.
 
 **Supabase Auth Features Used:**
 - Email/password authentication
@@ -250,7 +252,7 @@ This PRD covers:
 - JWT token management
 - Session handling
 
-**Backend Middleware:**
+**Backend Middleware (JWT verification only):**
 The Express app will have an auth middleware that:
 1. Extracts JWT token from `Authorization: Bearer <token>` header
 2. Verifies token with Supabase using `supabase.auth.getUser(token)`
@@ -265,13 +267,17 @@ All routes requiring authentication will use the auth middleware:
 - `DELETE /listings/:id`
 - `GET /favorites`
 - `POST /favorites`
+- `GET /messages/conversations` (P1)
+- `GET /messages/conversations/:id` (P1)
 - etc.
 
 ---
 
 ### 5.2 Users
 
-#### GET /users/me
+**MVP Note:** User profile reads/writes happen directly via Supabase from the frontend (RLS-enforced `profiles` table). Backend `/users/*` endpoints are optional and can be deferred to post‑MVP.
+
+#### GET /users/me (Optional, Post‑MVP)
 
 Get current user profile.
 
@@ -296,7 +302,7 @@ Get current user profile.
 
 ---
 
-#### PUT /users/me
+#### PUT /users/me (Optional, Post‑MVP)
 
 Update current user profile.
 
@@ -311,7 +317,7 @@ Update current user profile.
 
 ---
 
-#### PUT /users/me/password
+#### PUT /users/me/password (Not needed; handled by Supabase Auth)
 
 Change password.
 
@@ -325,7 +331,7 @@ Change password.
 
 ---
 
-#### POST /users/me/avatar
+#### POST /users/me/avatar (Optional, Post‑MVP)
 
 Upload avatar image.
 
@@ -333,7 +339,7 @@ Upload avatar image.
 
 ---
 
-#### DELETE /users/me
+#### DELETE /users/me (Optional, Post‑MVP)
 
 Request account deletion.
 
@@ -788,12 +794,13 @@ Send message in conversation.
 -- Profiles table (extends Supabase auth.users)
 CREATE TABLE profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  phone TEXT,
   nickname TEXT NOT NULL,
   avatar TEXT,
-  region TEXT,
-  show_phone BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  region TEXT NOT NULL DEFAULT 'Auckland',
+  show_phone_on_listings BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Listings table

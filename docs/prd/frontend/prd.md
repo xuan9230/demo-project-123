@@ -537,9 +537,9 @@ All list views should have designed empty states with:
 
 | Environment | API Base URL | Features |
 |-------------|--------------|----------|
-| Development | http://localhost:3001 | All features, mock data available |
-| Staging | https://api.staging.kiwicar.co.nz | All features |
-| Production | https://api.kiwicar.co.nz | Production features only |
+| Development | http://localhost:3001/api/v1 | All features, mock data available |
+| Staging | https://api.staging.kiwicar.co.nz/api/v1 | All features |
+| Production | https://api.kiwicar.co.nz/api/v1 | Production features only |
 
 ### 10.1 Environment Variables
 
@@ -567,27 +567,28 @@ VITE_FACEBOOK_APP_ID=
 
 ## 12. Dependencies on Backend
 
-This frontend requires the following backend API endpoints (see Backend PRD):
+This frontend uses Supabase Auth directly for registration, login, and password reset (no backend `/auth/*` endpoints in MVP).
 
-- `POST /auth/register`
-- `POST /auth/login`
-- `POST /auth/logout`
-- `POST /auth/forgot-password`
-- `POST /auth/reset-password`
-- `GET /auth/me`
+This frontend requires the following backend API endpoints (see Backend PRD):
 - `GET /listings`
 - `GET /listings/:id`
 - `POST /listings`
 - `PUT /listings/:id`
 - `DELETE /listings/:id`
+- `PUT /listings/:id/status`
+- `POST /listings/:id/view`
+- `POST /images/upload`
 - `GET /vehicles/:plateNumber`
 - `POST /ai/generate-description`
 - `GET /ai/pricing`
 - `GET /favorites`
 - `POST /favorites`
+- `PUT /favorites/:id`
 - `DELETE /favorites/:id`
-- `GET /users/me`
-- `PUT /users/me`
+- `GET /users/me` (optional, post‑MVP)
+- `PUT /users/me` (optional, post‑MVP)
+- `GET /messages/conversations` (P1)
+- `GET /messages/conversations/:id` (P1)
 
 ---
 
