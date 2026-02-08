@@ -1,0 +1,4 @@
+interface:
+  display_name: "KiwiCar Backend Endpoint"
+  short_description: "Add Express route endpoints in kiwicar-backend."
+  default_prompt: "Add or update an API endpoint in the kiwicar-backend Express app following existing patterns (routers, auth, validation, response helpers)."

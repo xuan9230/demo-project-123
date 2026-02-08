@@ -6,6 +6,7 @@ import { aiRouter } from "./ai";
 import { messagesRouter } from "./messages";
 import { imagesRouter } from "./images";
 import { usersRouter } from "./users";
+import { luxuryVehicleRouter } from "./luxury-vehicle";
 
 export const apiRouter = Router();
 
@@ -16,3 +17,4 @@ apiRouter.use("/ai", aiRouter);
 apiRouter.use("/messages", messagesRouter);
 apiRouter.use("/images", imagesRouter);
 apiRouter.use("/users", usersRouter);
+apiRouter.use("/luxury-vehicle", luxuryVehicleRouter);

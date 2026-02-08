@@ -1,0 +1,4 @@
+interface:
+  display_name: "Check Commit Name"
+  short_description: "Validate commit headers for this monorepo"
+  default_prompt: "Use $check-commit-name to validate my commit message header."
