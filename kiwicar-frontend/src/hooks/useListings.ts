@@ -4,6 +4,99 @@ import { mockListings, mockUserListings } from '@/data/mock'
 import { apiGet } from '@/lib/api'
 
 const PAGE_SIZE = 20
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+type ApiEnvelope<T> = { success: boolean; data: T }
+
+type ListingDetailApi = {
+  id: string
+  plateNumber?: string | null
+  make: string
+  model: string
+  variant?: string | null
+  year: number
+  mileage: number
+  price: number
+  description?: string | null
+  aiPriceMin?: number | null
+  aiPriceMax?: number | null
+  aiPriceRecommended?: number | null
+  fuelType?: Listing['fuelType'] | null
+  transmission?: 'auto' | 'manual' | 'automatic' | null
+  bodyType?: Listing['bodyType'] | null
+  color?: string | null
+  engineCC?: number | null
+  region: string
+  status?: Listing['status'] | null
+  wofExpiry?: string | null
+  regoExpiry?: string | null
+  images?: Array<{ url: string }>
+  seller?: {
+    id: string
+    nickname?: string | null
+    avatar?: string | null
+    phone?: string | null
+    memberSince?: string | null
+  } | null
+  viewCount?: number | null
+  favoriteCount?: number | null
+  isFavorited?: boolean | null
+  createdAt: string
+  updatedAt?: string | null
+}
+
+function mapApiListingDetailToListing(payload: ListingDetailApi): Listing {
+  const images = (payload.images ?? []).map((image) => image.url).filter(Boolean)
+  const transmission =
+    payload.transmission === 'auto'
+      ? 'automatic'
+      : (payload.transmission as Listing['transmission'] | undefined)
+
+  const hasAiRange =
+    typeof payload.aiPriceMin === 'number' &&
+    typeof payload.aiPriceMax === 'number' &&
+    typeof payload.aiPriceRecommended === 'number'
+
+  return {
+    id: payload.id,
+    title: `${payload.year} ${payload.make} ${payload.model}${payload.variant ? ` ${payload.variant}` : ''}`,
+    make: payload.make,
+    model: payload.model,
+    year: payload.year,
+    price: payload.price,
+    mileage: payload.mileage,
+    region: payload.region,
+    images,
+    description: payload.description ?? '',
+    fuelType: payload.fuelType ?? 'petrol',
+    transmission: transmission ?? 'automatic',
+    bodyType: payload.bodyType ?? 'sedan',
+    engineSize: payload.engineCC ? `${payload.engineCC}cc` : '-',
+    color: payload.color ?? '-',
+    plateNumber: payload.plateNumber ?? '-',
+    wofExpiry: payload.wofExpiry ?? payload.createdAt,
+    regoExpiry: payload.regoExpiry ?? payload.createdAt,
+    firstRegistered: `${payload.year}-01-01`,
+    status: payload.status ?? 'active',
+    sellerId: payload.seller?.id ?? '',
+    sellerName: payload.seller?.nickname ?? 'Private Seller',
+    sellerPhone: payload.seller?.phone ?? undefined,
+    sellerAvatar: payload.seller?.avatar ?? undefined,
+    isFavorited: Boolean(payload.isFavorited),
+    viewCount: payload.viewCount ?? 0,
+    favoriteCount: payload.favoriteCount ?? 0,
+    createdAt: payload.createdAt,
+    updatedAt: payload.updatedAt ?? payload.createdAt,
+    aiPriceEstimate: hasAiRange
+      ? {
+          min: payload.aiPriceMin as number,
+          recommended: payload.aiPriceRecommended as number,
+          max: payload.aiPriceMax as number,
+          confidence: 0.8,
+        }
+      : undefined,
+  }
+}
 
 function filterListings(
   listings: Listing[],
@@ -120,7 +213,8 @@ async function fetchListings(
   if (filters.fuelTypes?.length) params.set('fuelTypes', filters.fuelTypes.join(','))
   if (filters.transmissions?.length) params.set('transmissions', filters.transmissions.join(','))
   if (filters.bodyTypes?.length) params.set('bodyTypes', filters.bodyTypes.join(','))
-  if (sort) params.set('sort', sort)
+  // Backend does not support "recommended"; omit sort to use backend default ordering.
+  if (sort && sort !== 'recommended') params.set('sort', sort)
 
   type ListingsResponse =
     | Listing[]
@@ -166,13 +260,23 @@ export function useListing(id: string) {
   return useQuery({
     queryKey: ['listing', id],
     queryFn: async () => {
-      await delay(200)
-      const listing =
-        mockListings.find((l) => l.id === id) || mockUserListings.find((l) => l.id === id)
-      if (!listing) {
-        throw new Error('Listing not found')
+      try {
+        const raw = await apiGet<ListingDetailApi | ApiEnvelope<ListingDetailApi>>(
+          `/api/v1/listings/${id}`
+        )
+        const payload = (raw as ApiEnvelope<ListingDetailApi>).success
+          ? (raw as ApiEnvelope<ListingDetailApi>).data
+          : (raw as ListingDetailApi)
+        return mapApiListingDetailToListing(payload)
+      } catch {
+        await delay(200)
+        const listing =
+          mockListings.find((l) => l.id === id) || mockUserListings.find((l) => l.id === id)
+        if (!listing) {
+          throw new Error('Listing not found')
+        }
+        return listing
       }
-      return listing
     },
   })
 }

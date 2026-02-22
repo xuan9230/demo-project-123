@@ -15,6 +15,9 @@ interface ListingCardProps {
 export function ListingCard({ listing }: ListingCardProps) {
   const { isFavorited, addFavorite, removeFavorite } = useFavoritesStore()
   const favorited = isFavorited(listing.id)
+  const primaryImage =
+    listing.images?.[0] ??
+    ((listing as Listing & { coverImage?: string | null }).coverImage ?? null)
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -31,12 +34,18 @@ export function ListingCard({ listing }: ListingCardProps) {
       <Card className="overflow-hidden hover:shadow-md transition-shadow group">
         {/* Image */}
         <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-          <img
-            src={listing.images[0]}
-            alt={listing.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            loading="lazy"
-          />
+          {primaryImage ? (
+            <img
+              src={primaryImage}
+              alt={listing.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              loading="lazy"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+              No image
+            </div>
+          )}
           <Button
             variant="ghost"
             size="icon"
