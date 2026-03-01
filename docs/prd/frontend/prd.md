@@ -59,6 +59,11 @@ This PRD covers:
 | Playwright | E2E testing |
 | Storybook | Component documentation (optional) |
 
+### 2.2 Frontend Setup Notes (MVP Analytics)
+
+- Integrate Vercel Web Analytics once in app root (`src/main.tsx`).
+- Route transitions in the React Router SPA are captured as pageviews.
+
 ---
 
 ## 3. Information Architecture
@@ -517,19 +522,67 @@ All list views should have designed empty states with:
 
 ---
 
-## 9. Analytics Events
+## 9. MVP Analytics (Phase 1: Low Effort)
 
-| Event Name | Trigger | Properties |
-|------------|---------|------------|
-| `page_view` | Route change | page_path |
-| `search` | Search executed | query, filters |
-| `listing_view` | Detail page viewed | listing_id, price |
-| `listing_favorite` | Favorite added | listing_id |
-| `listing_share` | Share button clicked | listing_id, method |
-| `listing_created` | New listing published | listing_id, category |
-| `plate_lookup` | Plate search performed | success/fail |
-| `signup` | Registration completed | method (email/phone/social) |
-| `login` | Login completed | method |
+### 9.1 Scope
+
+- Use platform analytics only: Vercel (frontend pageviews/performance) and Render (backend operational metrics/logs).
+- No third-party product analytics SDK beyond Vercel package for this phase.
+- No custom frontend `track(...)` events in Phase 1.
+
+### 9.2 Frontend Implementation Notes
+
+- Integrate Vercel Web Analytics once at app root in `src/main.tsx`.
+- React Router route transitions in the SPA are captured as pageviews.
+- Keep implementation minimal: no per-component instrumentation in this phase.
+
+### 9.3 Route-to-Pageview Mapping (Frontend)
+
+| Route Pattern | Pageview Label (Reporting) | Tracking Mode |
+|---------------|-----------------------------|---------------|
+| `/` | `pageview_home` | Automatic pageview |
+| `/search` | `pageview_search` | Automatic pageview |
+| `/listing/:id` | `pageview_listing_detail` | Automatic pageview |
+| `/plate-check` | `pageview_plate_check` | Automatic pageview |
+| `/plate-check/:plateNumber` | `pageview_plate_check` | Automatic pageview |
+| `/sell/*` | `pageview_sell` | Automatic pageview |
+| `/favorites` | `pageview_favorites` | Automatic pageview |
+| `/my-listings` | `pageview_my_listings` | Automatic pageview |
+| `/account/*` | `pageview_account` | Automatic pageview |
+| `/auth/login` | `pageview_auth_login` | Automatic pageview |
+| `/auth/register` | `pageview_auth_register` | Automatic pageview |
+| `/auth/forgot-password` | `pageview_auth_forgot_password` | Automatic pageview |
+| `/auth/reset-password` | `pageview_auth_reset_password` | Automatic pageview |
+| `*` | `pageview_not_found` | Automatic pageview |
+
+### 9.4 Explicit Exclusions (Phase 1)
+
+- No button-click events for search, favorite, share, or publish interactions.
+- No step-level sell wizard analytics (Step 1-5) in this phase.
+
+### 9.5 KPI Linkage
+
+- Frontend pageviews are used for traffic/navigation context only.
+- Primary KPI is seller conversion (`listing publish success`), measured from backend events/logs on `POST /api/v1/listings`.
+- Backend KPI source remains authoritative for publish attempts/success/failure.
+
+### 9.6 Public APIs / Interfaces / Types
+
+- No changes to public API contracts.
+- No TypeScript interface/schema changes required for this Phase 1 analytics update.
+
+### 9.7 Analytics Acceptance Scenarios
+
+1. After production deploy, Vercel dashboard shows pageviews for the listed route patterns.
+2. Navigating between SPA routes increments pageview counts.
+3. No custom frontend event stream is expected in Phase 1.
+4. Backend publish metrics remain the source for seller conversion KPI reporting.
+
+### 9.8 Assumptions and Defaults
+
+- Source-of-truth frontend is current Vite app at `/kiwicar-frontend` (not Next.js).
+- This PRD file is the source-of-truth for Phase 1 frontend analytics scope.
+- Custom behavioral events are deferred to a later analytics phase.
 
 ---
 
@@ -545,11 +598,12 @@ All list views should have designed empty states with:
 
 ```env
 VITE_API_BASE_URL=
-VITE_GA_TRACKING_ID=
 VITE_SENTRY_DSN=
 VITE_GOOGLE_OAUTH_CLIENT_ID=
 VITE_FACEBOOK_APP_ID=
 ```
+
+Phase 1 note: no dedicated `VITE_*` analytics key is required for Vercel Web Analytics.
 
 ---
 
