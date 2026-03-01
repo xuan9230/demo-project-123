@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { supabase } from "../config/supabase";
 import { errorResponse, successResponse } from "../utils/response";
+import { enrichWithPromos } from "../utils/luxury-promo";
+import type { LuxuryVehicleInput } from "../utils/openai";
 
 export const luxuryVehicleRouter = Router();
 
@@ -24,11 +26,31 @@ luxuryVehicleRouter.get("/", async (_req, res) => {
     return res.status(500).json(errorResponse("DB_ERROR", error.message));
   }
 
-  const items = (data ?? []).map((listing) => {
+  const listings = data ?? [];
+
+  const promoInputs: LuxuryVehicleInput[] = listings.map((listing) => ({
+    id: listing.id,
+    year: listing.year,
+    make: listing.make,
+    model: listing.model,
+    variant: listing.variant,
+    mileage: listing.mileage,
+    price: listing.price,
+    region: listing.region,
+  }));
+
+  const promos = await enrichWithPromos(promoInputs);
+
+  const items = listings.map((listing) => {
     const images = listing.listing_images ?? [];
     const coverImage = images
       .slice()
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))[0]?.url;
+    const promo = promos.get(listing.id) ?? {
+      description: "",
+      source: "fallback" as const,
+      generatedAt: null,
+    };
     return {
       id: listing.id,
       title: buildTitle(listing),
@@ -38,6 +60,7 @@ luxuryVehicleRouter.get("/", async (_req, res) => {
       region: listing.region,
       coverImage: coverImage ?? null,
       createdAt: listing.created_at,
+      promo,
     };
   });
 

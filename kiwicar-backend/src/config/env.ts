@@ -14,6 +14,9 @@ const envSchema = z.object({
   NZTA_API_KEY: z.string().optional(),
   NZTA_API_URL: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
+  OPENAI_MODEL: z.string().optional(),
+  LUXURY_PROMO_AI_ENABLED: z.string().optional(),
+  MAX_AI_GENERATIONS_PER_REQUEST: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -34,4 +37,9 @@ export const env = {
   nztaApiKey: parsed.data.NZTA_API_KEY ?? "",
   nztaApiUrl: parsed.data.NZTA_API_URL ?? "",
   openaiApiKey: parsed.data.OPENAI_API_KEY ?? "",
+  openaiModel: parsed.data.OPENAI_MODEL ?? "gpt-4.1-mini",
+  luxuryPromoAiEnabled: parsed.data.LUXURY_PROMO_AI_ENABLED === "true",
+  maxAiGenerationsPerRequest: parsed.data.MAX_AI_GENERATIONS_PER_REQUEST
+    ? Number(parsed.data.MAX_AI_GENERATIONS_PER_REQUEST)
+    : 5,
 };
