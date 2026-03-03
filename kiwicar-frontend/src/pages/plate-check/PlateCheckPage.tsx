@@ -8,11 +8,10 @@ import {
   Calendar,
   Gauge,
   Car,
-  Fuel,
   Settings2,
   TrendingUp,
 } from 'lucide-react'
-import { usePlateCheck, useVehicleInfo, isValidNZPlate } from '@/hooks/usePlateCheck'
+import { usePlateCheck, isValidNZPlate } from '@/hooks/usePlateCheck'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -28,13 +27,13 @@ export default function PlateCheckPage() {
   const [searchedPlate, setSearchedPlate] = useState(urlPlateNumber || '')
 
   const plateCheckMutation = usePlateCheck()
-  const { data: vehicleInfo } = useVehicleInfo(searchedPlate)
+  const vehicleInfo = plateCheckMutation.data
 
   useEffect(() => {
     if (urlPlateNumber && urlPlateNumber !== searchedPlate) {
       setPlateInput(urlPlateNumber)
       setSearchedPlate(urlPlateNumber)
-      plateCheckMutation.mutate(urlPlateNumber)
+      plateCheckMutation.mutate({ plateNumber: urlPlateNumber })
     }
   }, [urlPlateNumber])
 
@@ -48,7 +47,7 @@ export default function PlateCheckPage() {
 
     setSearchedPlate(cleaned)
     navigate(`/plate-check/${cleaned}`, { replace: true })
-    plateCheckMutation.mutate(cleaned)
+    plateCheckMutation.mutate({ plateNumber: cleaned })
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -311,7 +310,7 @@ export default function PlateCheckPage() {
                 <h3 className="font-semibold text-lg">Odometer History</h3>
               </div>
               <div className="space-y-3">
-                {vehicleInfo.odometerReadings.map((reading, index) => (
+                {vehicleInfo.odometerReadings.map((reading: { date: string; km: number }, index: number) => (
                   <div key={index} className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">
                       {new Date(reading.date).toLocaleDateString('en-NZ', {

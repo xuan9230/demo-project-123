@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@kiwicar/trpc-types': path.resolve(__dirname, '../packages/trpc-types/src/index.ts'),
     },
   },
 })

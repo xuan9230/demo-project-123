@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react'
+import { ChevronLeft, Check } from 'lucide-react'
 import { useSellStore } from '@/stores/sell'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'

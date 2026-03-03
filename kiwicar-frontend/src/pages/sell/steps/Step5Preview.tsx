@@ -5,7 +5,6 @@ import {
   Edit,
   MapPin,
   Calendar,
-  Gauge,
   Fuel,
   Settings2,
   Car,
@@ -18,23 +17,64 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
-import { formatPrice, delay } from '@/lib/utils'
+import { formatPrice } from '@/lib/utils'
+import { trpc } from '@/lib/trpc'
 
 export default function Step5Preview() {
   const navigate = useNavigate()
   const { draft, priceEstimate, resetDraft, setStep } = useSellStore()
   const { user } = useAuthStore()
+  const createListingMutation = trpc.listings.create.useMutation()
   const [isPublishing, setIsPublishing] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
 
   const handlePublish = async () => {
+    if (!draft.plateNumber || !draft.vehicleInfo?.make || !draft.vehicleInfo.model || !draft.vehicleInfo.year) {
+      alert('Vehicle details are incomplete. Please go back and complete previous steps.')
+      return
+    }
+
+    if (!draft.price || draft.price < 1000) {
+      alert('Please set a valid listing price.')
+      return
+    }
+
     setIsPublishing(true)
 
-    // Simulate API call
-    await delay(2000)
+    const latestOdometer = draft.vehicleInfo.odometerReadings?.at(-1)?.km
+    const parsedEngineCC = Number((draft.vehicleInfo.engineSize || '').replace(/[^0-9]/g, ''))
+    const engineCC = Number.isFinite(parsedEngineCC) && parsedEngineCC > 0 ? parsedEngineCC : undefined
 
-    setIsPublishing(false)
-    setShowSuccess(true)
+    createListingMutation.mutate(
+      {
+        plateNumber: draft.plateNumber,
+        make: draft.vehicleInfo.make,
+        model: draft.vehicleInfo.model,
+        variant: undefined,
+        year: draft.vehicleInfo.year,
+        mileage: latestOdometer ?? 0,
+        price: draft.price,
+        priceNegotiable: draft.priceNegotiable,
+        description: draft.description || 'No description provided.',
+        fuelType: draft.vehicleInfo.fuelType || 'petrol',
+        transmission: 'auto',
+        bodyType: draft.vehicleInfo.bodyType,
+        color: draft.vehicleInfo.color,
+        engineCC,
+        region: user?.region || 'Auckland',
+        imageIds: draft.images,
+      },
+      {
+        onSuccess: () => {
+          setIsPublishing(false)
+          setShowSuccess(true)
+        },
+        onError: (error: { message: string }) => {
+          setIsPublishing(false)
+          alert(error.message || 'Failed to publish listing')
+        },
+      }
+    )
   }
 
   const handleSuccessClose = () => {
@@ -192,7 +232,7 @@ export default function Step5Preview() {
         </Button>
         <Button
           onClick={handlePublish}
-          disabled={isPublishing}
+          disabled={isPublishing || createListingMutation.isPending}
           size="lg"
           className="min-w-[200px]"
         >

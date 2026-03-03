@@ -25,7 +25,7 @@ import { Separator } from '@/components/ui/separator'
 import { ListingCard, ListingCardSkeleton } from '@/components/common/ListingCard'
 import { EmptyState } from '@/components/common/EmptyState'
 import { useListings } from '@/hooks/useListings'
-import type { SearchFilters, SortOption } from '@/types'
+import type { Listing, SearchFilters, SortOption } from '@/types'
 import { CAR_MAKES, CAR_MODELS, NZ_REGIONS } from '@/types'
 import { Search } from 'lucide-react'
 
@@ -85,7 +85,7 @@ export default function SearchPage() {
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage])
 
-  const allListings = data?.pages.flatMap((page) => page.data) ?? []
+  const allListings = data?.pages.flatMap((page: { data: Listing[] }) => page.data) ?? []
   const totalCount = data?.pages[0]?.meta.total ?? 0
 
   // Available models based on selected makes
@@ -395,7 +395,7 @@ export default function SearchPage() {
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                {allListings.map((listing) => (
+                {allListings.map((listing: Listing) => (
                   <ListingCard key={listing.id} listing={listing} />
                 ))}
               </div>

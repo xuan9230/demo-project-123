@@ -1,8 +1,11 @@
 import express from "express";
 import cors from "cors";
+import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { env } from "./config/env";
-import { apiRouter } from "./routes";
 import { errorHandler } from "./middleware/error";
+import { imagesRouter } from "./routes/images";
+import { appRouter } from "./trpc/router";
+import { createContext } from "./trpc/trpc";
 
 const app = express();
 
@@ -22,7 +25,15 @@ app.get("/health", (_req, res) => {
   res.status(200).json({ success: true, data: { status: "ok" } });
 });
 
-app.use("/api/v1", apiRouter);
+app.use(
+  "/trpc",
+  createExpressMiddleware({
+    router: appRouter,
+    createContext,
+  })
+);
+
+app.use("/api/v1/images", imagesRouter);
 
 app.use((req, res) => {
   res.status(404).json({

@@ -1,0 +1,5 @@
+packages:
+  - "kiwicar-backend"
+  - "kiwicar-frontend"
+  - "landing-page"
+  - "packages/*"

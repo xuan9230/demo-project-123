@@ -7,7 +7,6 @@ import {
   Edit,
   Trash2,
   CheckCircle,
-  XCircle,
   DollarSign,
   MoreVertical,
   Package,
@@ -35,8 +34,9 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { formatPrice, formatMileage, getDaysAgo, cn } from '@/lib/utils'
+import { formatPrice, formatMileage, getDaysAgo } from '@/lib/utils'
 import type { Listing } from '@/types'
+import { trpc } from '@/lib/trpc'
 
 type ActionDialog = {
   type: 'markSold' | 'changePrice' | 'remove'
@@ -44,7 +44,27 @@ type ActionDialog = {
 } | null
 
 export default function MyListingsPage() {
+  const utils = trpc.useUtils()
   const { data: listings, isLoading } = useUserListings()
+  const updateStatusMutation = trpc.listings.updateStatus.useMutation({
+    onSuccess: () => {
+      void utils.listings.myListings.invalidate()
+      void utils.listings.list.invalidate()
+    },
+  })
+  const updateListingMutation = trpc.listings.update.useMutation({
+    onSuccess: () => {
+      void utils.listings.myListings.invalidate()
+      void utils.listings.getById.invalidate()
+      void utils.listings.list.invalidate()
+    },
+  })
+  const deleteListingMutation = trpc.listings.delete.useMutation({
+    onSuccess: () => {
+      void utils.listings.myListings.invalidate()
+      void utils.listings.list.invalidate()
+    },
+  })
   const [actionDialog, setActionDialog] = useState<ActionDialog>(null)
   const [newPrice, setNewPrice] = useState<number>(0)
 
@@ -62,14 +82,38 @@ export default function MyListingsPage() {
   }
 
   const confirmAction = () => {
-    // In real app, would call API
-    alert(`Action confirmed: ${actionDialog?.type}`)
-    setActionDialog(null)
+    if (!actionDialog) {
+      return
+    }
+
+    if (actionDialog.type === 'markSold') {
+      updateStatusMutation.mutate(
+        { id: actionDialog.listing.id, status: 'sold' },
+        { onSuccess: () => setActionDialog(null) }
+      )
+      return
+    }
+
+    if (actionDialog.type === 'changePrice') {
+      updateListingMutation.mutate(
+        {
+          id: actionDialog.listing.id,
+          data: { price: newPrice },
+        },
+        { onSuccess: () => setActionDialog(null) }
+      )
+      return
+    }
+
+    deleteListingMutation.mutate(
+      { id: actionDialog.listing.id },
+      { onSuccess: () => setActionDialog(null) }
+    )
   }
 
-  const activeListings = listings?.filter((l) => l.status === 'active') || []
-  const soldListings = listings?.filter((l) => l.status === 'sold') || []
-  const removedListings = listings?.filter((l) => l.status === 'removed') || []
+  const activeListings = listings?.filter((l: Listing) => l.status === 'active') || []
+  const soldListings = listings?.filter((l: Listing) => l.status === 'sold') || []
+  const removedListings = listings?.filter((l: Listing) => l.status === 'removed') || []
 
   if (isLoading) {
     return (
@@ -91,14 +135,7 @@ export default function MyListingsPage() {
           icon={Package}
           title="No Listings Yet"
           description="You haven't listed any vehicles for sale. Create your first listing to get started."
-          action={
-            <Link to="/sell">
-              <Button size="lg">
-                <Plus className="h-5 w-5 mr-2" />
-                Create Listing
-              </Button>
-            </Link>
-          }
+          action={{ label: 'Create Listing', href: '/sell' }}
         />
       </div>
     )
@@ -127,7 +164,7 @@ export default function MyListingsPage() {
         <div className="mb-8">
           <h2 className="text-xl font-semibold mb-4">Active Listings</h2>
           <div className="space-y-4">
-            {activeListings.map((listing) => (
+            {activeListings.map((listing: Listing) => (
               <ListingManagementCard
                 key={listing.id}
                 listing={listing}
@@ -145,7 +182,7 @@ export default function MyListingsPage() {
         <div className="mb-8">
           <h2 className="text-xl font-semibold mb-4">Sold Listings</h2>
           <div className="space-y-4">
-            {soldListings.map((listing) => (
+            {soldListings.map((listing: Listing) => (
               <ListingManagementCard
                 key={listing.id}
                 listing={listing}
@@ -163,7 +200,7 @@ export default function MyListingsPage() {
         <div>
           <h2 className="text-xl font-semibold mb-4">Removed Listings</h2>
           <div className="space-y-4">
-            {removedListings.map((listing) => (
+            {removedListings.map((listing: Listing) => (
               <ListingManagementCard
                 key={listing.id}
                 listing={listing}
@@ -218,7 +255,14 @@ export default function MyListingsPage() {
             <Button variant="outline" onClick={() => setActionDialog(null)}>
               Cancel
             </Button>
-            <Button onClick={confirmAction}>
+            <Button
+              onClick={confirmAction}
+              disabled={
+                updateStatusMutation.isPending ||
+                updateListingMutation.isPending ||
+                deleteListingMutation.isPending
+              }
+            >
               {actionDialog?.type === 'markSold' && 'Mark as Sold'}
               {actionDialog?.type === 'changePrice' && 'Update Price'}
               {actionDialog?.type === 'remove' && 'Remove Listing'}

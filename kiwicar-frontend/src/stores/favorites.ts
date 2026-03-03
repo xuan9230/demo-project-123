@@ -1,60 +1,62 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import type { Favorite, Listing } from '@/types'
-import { mockFavorites } from '@/data/mock'
+
+type Favorite = {
+  id: string
+  listingId: string
+  priceAlertEnabled: boolean
+  targetPrice?: number
+  createdAt: string
+}
 
 interface FavoritesState {
   favorites: Favorite[]
-  addFavorite: (listing: Listing) => void
+  addFavorite: (listing: { id: string }) => void
   removeFavorite: (listingId: string) => void
   isFavorited: (listingId: string) => boolean
   togglePriceAlert: (listingId: string, enabled: boolean) => void
   setTargetPrice: (listingId: string, price: number) => void
 }
 
-export const useFavoritesStore = create<FavoritesState>()(
-  persist(
-    (set, get) => ({
-      favorites: mockFavorites,
+export const useFavoritesStore = create<FavoritesState>((set, get) => ({
+  favorites: [],
 
-      addFavorite: (listing) =>
-        set((state) => {
-          if (state.favorites.some((f) => f.listingId === listing.id)) {
-            return state
-          }
-          const newFavorite: Favorite = {
+  addFavorite: (listing) =>
+    set((state) => {
+      if (state.favorites.some((favorite) => favorite.listingId === listing.id)) {
+        return state
+      }
+
+      return {
+        favorites: [
+          ...state.favorites,
+          {
             id: `fav-${Date.now()}`,
             listingId: listing.id,
-            listing,
             priceAlertEnabled: false,
             createdAt: new Date().toISOString(),
-          }
-          return { favorites: [...state.favorites, newFavorite] }
-        }),
-
-      removeFavorite: (listingId) =>
-        set((state) => ({
-          favorites: state.favorites.filter((f) => f.listingId !== listingId),
-        })),
-
-      isFavorited: (listingId) => get().favorites.some((f) => f.listingId === listingId),
-
-      togglePriceAlert: (listingId, enabled) =>
-        set((state) => ({
-          favorites: state.favorites.map((f) =>
-            f.listingId === listingId ? { ...f, priceAlertEnabled: enabled } : f
-          ),
-        })),
-
-      setTargetPrice: (listingId, price) =>
-        set((state) => ({
-          favorites: state.favorites.map((f) =>
-            f.listingId === listingId ? { ...f, targetPrice: price } : f
-          ),
-        })),
+          },
+        ],
+      }
     }),
-    {
-      name: 'kiwicar-favorites',
-    }
-  )
-)
+
+  removeFavorite: (listingId) =>
+    set((state) => ({
+      favorites: state.favorites.filter((favorite) => favorite.listingId !== listingId),
+    })),
+
+  isFavorited: (listingId) => get().favorites.some((favorite) => favorite.listingId === listingId),
+
+  togglePriceAlert: (listingId, enabled) =>
+    set((state) => ({
+      favorites: state.favorites.map((favorite) =>
+        favorite.listingId === listingId ? { ...favorite, priceAlertEnabled: enabled } : favorite
+      ),
+    })),
+
+  setTargetPrice: (listingId, price) =>
+    set((state) => ({
+      favorites: state.favorites.map((favorite) =>
+        favorite.listingId === listingId ? { ...favorite, targetPrice: price } : favorite
+      ),
+    })),
+}))

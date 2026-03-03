@@ -16,6 +16,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@trpc/server": "^11.0.0",
     "@supabase/supabase-js": "^2.93.3",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",

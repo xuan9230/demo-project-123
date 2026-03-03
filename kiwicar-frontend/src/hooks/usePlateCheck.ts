@@ -1,7 +1,7 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
-import type { VehicleInfo, PriceEstimate } from '@/types'
-import { mockVehicleLookup, generatePriceEstimate, generateAIDescription } from '@/data/mock'
+import { useMutation } from '@tanstack/react-query'
+import type { PriceEstimate, VehicleInfo } from '@/types'
 import { delay } from '@/lib/utils'
+import { trpc } from '@/lib/trpc'
 
 // NZ plate format validation (simplified)
 export function isValidNZPlate(plate: string): boolean {
@@ -10,40 +10,30 @@ export function isValidNZPlate(plate: string): boolean {
   return /^[A-Z0-9]{3,6}$/.test(cleaned)
 }
 
-export function usePlateCheck() {
-  return useMutation({
-    mutationFn: async (plateNumber: string): Promise<VehicleInfo> => {
-      await delay(800) // Simulate API call
+const hashCode = (value: string) =>
+  value.split('').reduce((acc, char) => (acc * 31 + char.charCodeAt(0)) % 1000000, 0)
 
-      const plate = plateNumber.toUpperCase().replace(/\s/g, '')
+const generatePriceEstimate = (make: string, model: string, year: number, mileage: number): PriceEstimate => {
+  const base = 12000 + (year - 2000) * 900
+  const mileagePenalty = Math.floor(mileage / 1000) * 45
+  const nameFactor = hashCode(`${make}${model}`) % 6000
+  const recommended = Math.max(1000, base + nameFactor - mileagePenalty)
 
-      if (!isValidNZPlate(plate)) {
-        throw new Error('Invalid plate number format')
-      }
-
-      const result = mockVehicleLookup[plate]
-
-      if (!result) {
-        // Generate mock data for unknown plates
-        throw new Error('Vehicle not found. Please check the plate number and try again.')
-      }
-
-      return result
-    },
-  })
+  return {
+    min: Math.round(recommended * 0.9),
+    recommended,
+    max: Math.round(recommended * 1.12),
+    confidence: 0.78,
+  }
 }
 
-export function useVehicleInfo(plateNumber: string | undefined) {
-  return useQuery({
-    queryKey: ['vehicle', plateNumber],
-    queryFn: async () => {
-      if (!plateNumber) throw new Error('No plate number')
-      await delay(500)
-      const plate = plateNumber.toUpperCase().replace(/\s/g, '')
-      return mockVehicleLookup[plate] || null
-    },
-    enabled: !!plateNumber,
-  })
+const generateAIDescription = (vehicleInfo: VehicleInfo) =>
+  `Well-maintained ${vehicleInfo.year} ${vehicleInfo.make} ${vehicleInfo.model}. ` +
+  `Finished in ${vehicleInfo.color || 'a clean'} exterior with ${vehicleInfo.fuelType} engine and ${vehicleInfo.bodyType} body style. ` +
+  `Ideal for NZ driving with practical ownership costs and reliable daily performance.`
+
+export function usePlateCheck() {
+  return trpc.vehicles.lookupByPlate.useMutation()
 }
 
 export function useAIPricing() {
@@ -54,7 +44,7 @@ export function useAIPricing() {
       year: number
       mileage: number
     }): Promise<PriceEstimate> => {
-      await delay(1000) // Simulate AI processing
+      await delay(900)
       return generatePriceEstimate(params.make, params.model, params.year, params.mileage)
     },
   })
@@ -63,7 +53,7 @@ export function useAIPricing() {
 export function useAIDescription() {
   return useMutation({
     mutationFn: async (vehicleInfo: VehicleInfo): Promise<string> => {
-      await delay(1500) // Simulate AI processing
+      await delay(1200)
       return generateAIDescription(vehicleInfo)
     },
   })

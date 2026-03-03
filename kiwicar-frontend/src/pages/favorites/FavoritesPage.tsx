@@ -1,7 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Heart, Bell, BellOff, Target, TrendingDown, TrendingUp, AlertCircle, ShoppingBag } from 'lucide-react'
-import { useFavoritesStore } from '@/stores/favorites'
+import { Heart, Bell, BellOff, Target, TrendingDown, TrendingUp, AlertCircle } from 'lucide-react'
 import { ListingCard } from '@/components/common/ListingCard'
 import { EmptyState } from '@/components/common/EmptyState'
 import { Button } from '@/components/ui/button'
@@ -12,63 +10,85 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { formatPrice, cn } from '@/lib/utils'
+import { trpc } from '@/lib/trpc'
 
 export default function FavoritesPage() {
-  const { favorites, togglePriceAlert, setTargetPrice } = useFavoritesStore()
+  const utils = trpc.useUtils()
+  const { data: favorites = [] } = trpc.favorites.list.useQuery()
+  const updateFavoriteMutation = trpc.favorites.update.useMutation({
+    onSuccess: () => {
+      void utils.favorites.list.invalidate()
+      void utils.listings.list.invalidate()
+    },
+  })
+
   const [priceAlertDialog, setPriceAlertDialog] = useState<{
     isOpen: boolean
     favoriteId: string
-    listingId: string
     currentPrice: number
     targetPrice: number | undefined
   } | null>(null)
 
-  const handleTogglePriceAlert = (favoriteId: string, listingId: string, currentPrice: number, currentEnabled: boolean, currentTarget?: number) => {
+  const handleTogglePriceAlert = (
+    favoriteId: string,
+    currentPrice: number,
+    currentEnabled: boolean,
+    currentTarget?: number | null
+  ) => {
     if (!currentEnabled) {
-      // Opening dialog to set target price
       setPriceAlertDialog({
         isOpen: true,
         favoriteId,
-        listingId,
         currentPrice,
         targetPrice: currentTarget || Math.round(currentPrice * 0.9),
       })
-    } else {
-      // Turning off price alert
-      togglePriceAlert(listingId, false)
+      return
     }
+
+    updateFavoriteMutation.mutate({
+      id: favoriteId,
+      data: {
+        priceAlert: false,
+      },
+    })
   }
 
   const handleSavePriceAlert = () => {
-    if (priceAlertDialog) {
-      setTargetPrice(priceAlertDialog.listingId, priceAlertDialog.targetPrice || 0)
-      togglePriceAlert(priceAlertDialog.listingId, true)
-      setPriceAlertDialog(null)
+    if (!priceAlertDialog) {
+      return
     }
+
+    updateFavoriteMutation.mutate(
+      {
+        id: priceAlertDialog.favoriteId,
+        data: {
+          targetPrice: priceAlertDialog.targetPrice || 0,
+          priceAlert: true,
+        },
+      },
+      {
+        onSuccess: () => {
+          setPriceAlertDialog(null)
+        },
+      }
+    )
   }
 
-  const getPriceChange = (listing: any) => {
-    // In a real app, would track price history
-    // For now, simulate with random change
-    const changePercent = Math.random() > 0.7 ? (Math.random() * 10 - 5) : 0
+  const getPriceChange = () => {
+    const changePercent = Math.random() > 0.7 ? Math.random() * 10 - 5 : 0
     return changePercent
   }
 
-  if (favorites.length === 0) {
+  const favoriteListings = favorites.filter((favorite: { listing: unknown }) => favorite.listing)
+
+  if (favoriteListings.length === 0) {
     return (
       <div className="container mx-auto px-4 py-16 max-w-7xl">
         <EmptyState
           icon={Heart}
           title="No Favorites Yet"
           description="Start favoriting listings to keep track of vehicles you're interested in."
-          action={
-            <Link to="/">
-              <Button size="lg">
-                <ShoppingBag className="h-5 w-5 mr-2" />
-                Browse Listings
-              </Button>
-            </Link>
-          }
+          action={{ label: 'Browse Listings', href: '/' }}
         />
       </div>
     )
@@ -76,15 +96,13 @@ export default function FavoritesPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">My Favorites</h1>
         <p className="text-muted-foreground">
-          {favorites.length} {favorites.length === 1 ? 'listing' : 'listings'} saved
+          {favoriteListings.length} {favoriteListings.length === 1 ? 'listing' : 'listings'} saved
         </p>
       </div>
 
-      {/* Info card */}
       <Card className="p-4 mb-6 bg-primary/5 border-primary/20">
         <div className="flex items-start gap-3">
           <Bell className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
@@ -97,10 +115,13 @@ export default function FavoritesPage() {
         </div>
       </Card>
 
-      {/* Favorites grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {favorites.map((favorite) => {
-          const priceChange = getPriceChange(favorite.listing)
+        {favoriteListings.map((favorite: any) => {
+          if (!favorite.listing) {
+            return null
+          }
+
+          const priceChange = getPriceChange()
           const hasDecreased = priceChange < 0
           const hasIncreased = priceChange > 0
 
@@ -108,11 +129,10 @@ export default function FavoritesPage() {
             <div key={favorite.id} className="space-y-3">
               <ListingCard listing={favorite.listing} />
 
-              {/* Price alert card */}
               <Card className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    {favorite.priceAlertEnabled ? (
+                    {favorite.priceAlert ? (
                       <Bell className="h-4 w-4 text-primary" />
                     ) : (
                       <BellOff className="h-4 w-4 text-muted-foreground" />
@@ -120,26 +140,26 @@ export default function FavoritesPage() {
                     <span className="text-sm font-medium">Price Alert</span>
                   </div>
                   <Switch
-                    checked={favorite.priceAlertEnabled}
+                    checked={Boolean(favorite.priceAlert)}
                     onCheckedChange={() =>
                       handleTogglePriceAlert(
                         favorite.id,
-                        favorite.listingId,
-                        favorite.listing.price,
-                        favorite.priceAlertEnabled,
+                        Number(favorite.currentPrice || favorite.listing.price),
+                        Boolean(favorite.priceAlert),
                         favorite.targetPrice
                       )
                     }
+                    disabled={updateFavoriteMutation.isPending}
                   />
                 </div>
 
-                {favorite.priceAlertEnabled && favorite.targetPrice && (
+                {favorite.priceAlert && favorite.targetPrice && (
                   <div className="text-sm">
                     <div className="flex items-center gap-2 text-muted-foreground mb-2">
                       <Target className="h-4 w-4" />
-                      <span>Target: {formatPrice(favorite.targetPrice)}</span>
+                      <span>Target: {formatPrice(Number(favorite.targetPrice))}</span>
                     </div>
-                    {favorite.listing.price <= favorite.targetPrice && (
+                    {Number(favorite.listing.price) <= Number(favorite.targetPrice) && (
                       <Badge variant="default" className="w-full justify-center bg-green-600">
                         Target price reached!
                       </Badge>
@@ -147,7 +167,6 @@ export default function FavoritesPage() {
                   </div>
                 )}
 
-                {/* Price change indicator */}
                 {(hasDecreased || hasIncreased) && (
                   <div
                     className={cn(
@@ -166,7 +185,6 @@ export default function FavoritesPage() {
                   </div>
                 )}
 
-                {/* Listing status warning */}
                 {favorite.listing.status !== 'active' && (
                   <div className="flex items-center gap-2 text-sm mt-2 p-2 rounded bg-orange-50 text-orange-700">
                     <AlertCircle className="h-4 w-4" />
@@ -181,7 +199,6 @@ export default function FavoritesPage() {
         })}
       </div>
 
-      {/* Price alert dialog */}
       {priceAlertDialog && (
         <Dialog open={priceAlertDialog.isOpen} onOpenChange={(open) => !open && setPriceAlertDialog(null)}>
           <DialogContent>
@@ -207,7 +224,7 @@ export default function FavoritesPage() {
                   onChange={(e) =>
                     setPriceAlertDialog({
                       ...priceAlertDialog,
-                      targetPrice: parseInt(e.target.value) || 0,
+                      targetPrice: parseInt(e.target.value, 10) || 0,
                     })
                   }
                   className="text-lg font-semibold"
@@ -224,7 +241,7 @@ export default function FavoritesPage() {
               <Button variant="outline" onClick={() => setPriceAlertDialog(null)} className="flex-1">
                 Cancel
               </Button>
-              <Button onClick={handleSavePriceAlert} className="flex-1">
+              <Button onClick={handleSavePriceAlert} className="flex-1" disabled={updateFavoriteMutation.isPending}>
                 <Bell className="h-4 w-4 mr-2" />
                 Enable Alert
               </Button>

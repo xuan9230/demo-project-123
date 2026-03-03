@@ -1,46 +1,90 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Upload, X, Camera, Image as ImageIcon, MoveUp, MoveDown } from 'lucide-react'
 import { useSellStore } from '@/stores/sell'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { supabase } from '@/lib/supabase'
 
 const MAX_IMAGES = 10
 const MIN_IMAGES = 3
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
+
+if (!apiBaseUrl) {
+  throw new Error('Missing VITE_API_BASE_URL environment variable.')
+}
 
 export default function Step2Photos() {
   const { draft, addImage, removeImage, reorderImages, setStep } = useSellStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isUploading, setIsUploading] = useState(false)
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
 
-    files.forEach((file) => {
-      if (draft.images.length >= MAX_IMAGES) {
-        alert(`Maximum ${MAX_IMAGES} images allowed`)
-        return
+    if (files.length === 0) {
+      return
+    }
+
+    const remainingSlots = MAX_IMAGES - draft.images.length
+    if (remainingSlots <= 0) {
+      alert(`Maximum ${MAX_IMAGES} images allowed`)
+      return
+    }
+
+    const selectedFiles = files.slice(0, remainingSlots)
+    if (selectedFiles.length < files.length) {
+      alert(`Only ${remainingSlots} images can be uploaded right now`)
+    }
+
+    const oversized = selectedFiles.find((file) => file.size > MAX_FILE_SIZE_BYTES)
+    if (oversized) {
+      alert('Each image must be less than 5MB')
+      return
+    }
+
+    setIsUploading(true)
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const accessToken = sessionData.session?.access_token
+
+      if (!accessToken) {
+        throw new Error('You must be logged in to upload photos')
       }
 
-      if (file.size > 2 * 1024 * 1024) {
-        alert('Image must be less than 2MB')
-        return
+      const formData = new FormData()
+      selectedFiles.forEach((file) => formData.append('images', file))
+
+      const response = await fetch(new URL('/api/v1/images/upload', apiBaseUrl).toString(), {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: formData,
+      })
+
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        const message = payload?.error?.message || `Upload failed (${response.status})`
+        throw new Error(message)
       }
 
-      // In a real app, upload to server/S3 and get URL
-      // For now, create a local object URL (this is just for demo)
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        // Use a mock image URL from unsplash for demo
-        const mockImageUrl = `https://images.unsplash.com/photo-${Date.now() % 10}?w=800`
-        addImage(mockImageUrl)
+      const uploads = Array.isArray(payload?.data) ? payload.data : []
+      uploads.forEach((upload: { url?: string }) => {
+        if (upload.url) {
+          addImage(upload.url)
+        }
+      })
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to upload images')
+    } finally {
+      setIsUploading(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
       }
-      reader.readAsDataURL(file)
-    })
-
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
     }
   }
 
@@ -64,7 +108,6 @@ export default function Step2Photos() {
         </p>
       </div>
 
-      {/* Upload area */}
       <div>
         <input
           ref={fileInputRef}
@@ -73,12 +116,16 @@ export default function Step2Photos() {
           multiple
           onChange={handleFileSelect}
           className="hidden"
+          disabled={isUploading}
         />
 
         {canAddMore && (
           <Card
-            className="p-8 border-2 border-dashed cursor-pointer hover:border-primary transition-colors"
-            onClick={() => fileInputRef.current?.click()}
+            className={cn(
+              'p-8 border-2 border-dashed transition-colors',
+              isUploading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-primary'
+            )}
+            onClick={() => !isUploading && fileInputRef.current?.click()}
           >
             <div className="text-center">
               <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -90,16 +137,16 @@ export default function Step2Photos() {
                   <span>JPG, PNG</span>
                 </div>
                 <span>•</span>
-                <span>Max 2MB each</span>
+                <span>Max 5MB each</span>
                 <span>•</span>
                 <span>{draft.images.length}/{MAX_IMAGES} uploaded</span>
               </div>
+              {isUploading && <p className="text-sm text-primary mt-3">Uploading...</p>}
             </div>
           </Card>
         )}
       </div>
 
-      {/* Image grid */}
       {draft.images.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-4">
@@ -107,7 +154,12 @@ export default function Step2Photos() {
               {draft.images.length} of {MAX_IMAGES} photos
             </p>
             {canAddMore && (
-              <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+              >
                 <Upload className="h-4 w-4 mr-2" />
                 Add More
               </Button>
@@ -125,14 +177,12 @@ export default function Step2Photos() {
                   />
                 </div>
 
-                {/* First image badge */}
                 {index === 0 && (
                   <Badge className="absolute top-2 left-2 bg-primary">
                     Cover Photo
                   </Badge>
                 )}
 
-                {/* Action buttons */}
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                   {index > 0 && (
                     <Button
@@ -140,6 +190,7 @@ export default function Step2Photos() {
                       size="icon"
                       className="h-8 w-8"
                       onClick={() => reorderImages(index, index - 1)}
+                      disabled={isUploading}
                     >
                       <MoveUp className="h-4 w-4" />
                     </Button>
@@ -150,6 +201,7 @@ export default function Step2Photos() {
                       size="icon"
                       className="h-8 w-8"
                       onClick={() => reorderImages(index, index + 1)}
+                      disabled={isUploading}
                     >
                       <MoveDown className="h-4 w-4" />
                     </Button>
@@ -159,12 +211,12 @@ export default function Step2Photos() {
                     size="icon"
                     className="h-8 w-8"
                     onClick={() => removeImage(index)}
+                    disabled={isUploading}
                   >
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
 
-                {/* Image number */}
                 <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded">
                   {index + 1}
                 </div>
@@ -174,7 +226,6 @@ export default function Step2Photos() {
         </div>
       )}
 
-      {/* Tips */}
       <Card className="p-4 bg-muted">
         <div className="flex items-start gap-3">
           <ImageIcon className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
@@ -191,14 +242,13 @@ export default function Step2Photos() {
         </div>
       </Card>
 
-      {/* Continue button */}
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={() => setStep(1)}>
           Back
         </Button>
         <Button
           onClick={handleContinue}
-          disabled={!canContinue}
+          disabled={!canContinue || isUploading}
           size="lg"
         >
           Continue to Description

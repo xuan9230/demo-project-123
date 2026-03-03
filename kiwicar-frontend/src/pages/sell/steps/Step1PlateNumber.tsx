@@ -19,8 +19,8 @@ export default function Step1PlateNumber() {
       return
     }
 
-    plateCheckMutation.mutate(cleaned, {
-      onSuccess: (data) => {
+    plateCheckMutation.mutate({ plateNumber: cleaned }, {
+      onSuccess: (data: any) => {
         setPlateNumber(cleaned)
         setVehicleInfo({
           plateNumber: data.plateNumber,

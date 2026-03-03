@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { Sparkles, RefreshCw } from 'lucide-react'
 import { useAIDescription } from '@/hooks/usePlateCheck'
 import { useSellStore } from '@/stores/sell'

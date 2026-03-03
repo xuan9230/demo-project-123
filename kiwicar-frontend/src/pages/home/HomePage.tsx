@@ -1,27 +1,61 @@
-import { useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { useInView } from 'react-intersection-observer'
+import { Link, useNavigate } from 'react-router-dom'
 import { Search, Car, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ListingCard, ListingCardSkeleton } from '@/components/common/ListingCard'
-import { useListings } from '@/hooks/useListings'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import type { Listing } from '@/types'
+import { trpc } from '@/lib/trpc'
+
+const mapLuxuryListing = (listing: {
+  id: string
+  title: string
+  make: string
+  model: string
+  year: number
+  price: number
+  mileage: number
+  region: string
+  coverImage: string | null
+  createdAt: string
+  status: 'active' | 'sold' | 'removed'
+  fuelType: 'petrol' | 'diesel' | 'hybrid' | 'electric'
+  transmission: 'automatic' | 'manual'
+  bodyType: string | null
+}): Listing => ({
+  id: listing.id,
+  title: listing.title,
+  make: listing.make,
+  model: listing.model,
+  year: listing.year,
+  price: listing.price,
+  mileage: listing.mileage,
+  region: listing.region,
+  images: listing.coverImage ? [listing.coverImage] : [],
+  description: '',
+  fuelType: listing.fuelType,
+  transmission: listing.transmission,
+  bodyType: (listing.bodyType as Listing['bodyType'] | null) ?? 'sedan',
+  engineSize: '-',
+  color: '-',
+  plateNumber: '-',
+  wofExpiry: listing.createdAt,
+  regoExpiry: listing.createdAt,
+  firstRegistered: `${listing.year}-01-01`,
+  status: listing.status,
+  sellerId: '',
+  sellerName: 'Private Seller',
+  viewCount: 0,
+  favoriteCount: 0,
+  createdAt: listing.createdAt,
+  updatedAt: listing.createdAt,
+})
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('')
   const navigate = useNavigate()
-  const { ref, inView } = useInView()
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useListings()
-
-  // Infinite scroll
-  useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) {
-      fetchNextPage()
-    }
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage])
+  const { data: luxuryListings = [], isLoading } = trpc.luxuryVehicle.list.useQuery()
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,11 +64,12 @@ export default function HomePage() {
     }
   }
 
-  const allListings = data?.pages.flatMap((page) => page.data) ?? []
+  const allListings = luxuryListings.map((listing: Parameters<typeof mapLuxuryListing>[0]) =>
+    mapLuxuryListing(listing)
+  )
 
   return (
     <div>
-      {/* Hero Section */}
       <section className="bg-gradient-to-b from-primary/10 to-background py-12 md:py-20">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center">
@@ -45,7 +80,6 @@ export default function HomePage() {
               AI-powered search, smart pricing, and thousands of quality used cars
             </p>
 
-            {/* Search bar */}
             <form onSubmit={handleSearch} className="flex gap-2 max-w-xl mx-auto">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -62,7 +96,6 @@ export default function HomePage() {
               </Button>
             </form>
 
-            {/* Quick links */}
             <div className="flex flex-wrap justify-center gap-4 mt-8">
               <Button asChild variant="outline">
                 <Link to="/plate-check">
@@ -81,10 +114,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Listings Feed */}
       <section className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">Latest Listings</h2>
+          <h2 className="text-2xl font-bold">Luxury Highlights</h2>
           <Button asChild variant="ghost">
             <Link to="/search">View All</Link>
           </Button>
@@ -97,26 +129,11 @@ export default function HomePage() {
             ))}
           </div>
         ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {allListings.map((listing) => (
-                <ListingCard key={listing.id} listing={listing} />
-              ))}
-            </div>
-
-            {/* Infinite scroll trigger */}
-            <div ref={ref} className="flex justify-center py-8">
-              {isFetchingNextPage && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                  Loading more...
-                </div>
-              )}
-              {!hasNextPage && allListings.length > 0 && (
-                <p className="text-muted-foreground">You've reached the end</p>
-              )}
-            </div>
-          </>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {allListings.map((listing: Listing) => (
+              <ListingCard key={listing.id} listing={listing} />
+            ))}
+          </div>
         )}
       </section>
     </div>

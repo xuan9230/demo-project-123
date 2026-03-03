@@ -1,38 +1,83 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Heart, MapPin, Calendar } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { Listing } from '@/types'
 import { formatPrice, formatMileage, getDaysAgo, cn } from '@/lib/utils'
-import { useFavoritesStore } from '@/stores/favorites'
+import { trpc } from '@/lib/trpc'
+import { useAuthStore } from '@/stores/auth'
+
+interface ListingCardListing {
+  id: string
+  title: string
+  price: number
+  mileage: number
+  region: string
+  createdAt: string
+  transmission?: string | null
+  fuelType?: string | null
+  status?: string | null
+  images?: string[]
+  coverImage?: string | null
+  isFavorited?: boolean
+}
 
 interface ListingCardProps {
-  listing: Listing
+  listing: ListingCardListing
 }
 
 export function ListingCard({ listing }: ListingCardProps) {
-  const { isFavorited, addFavorite, removeFavorite } = useFavoritesStore()
-  const favorited = isFavorited(listing.id)
-  const primaryImage =
-    listing.images?.[0] ??
-    ((listing as Listing & { coverImage?: string | null }).coverImage ?? null)
+  const navigate = useNavigate()
+  const { isAuthenticated } = useAuthStore()
+  const utils = trpc.useUtils()
+
+  const { data: favorites = [] } = trpc.favorites.list.useQuery(undefined, {
+    enabled: isAuthenticated,
+  })
+
+  const addFavoriteMutation = trpc.favorites.add.useMutation({
+    onSuccess: () => {
+      void utils.favorites.list.invalidate()
+      void utils.listings.list.invalidate()
+      void utils.listings.getById.invalidate()
+    },
+  })
+
+  const removeFavoriteMutation = trpc.favorites.remove.useMutation({
+    onSuccess: () => {
+      void utils.favorites.list.invalidate()
+      void utils.listings.list.invalidate()
+      void utils.listings.getById.invalidate()
+    },
+  })
+
+  const favoriteRecord = favorites.find((favorite: { id: string; listingId: string }) => favorite.listingId === listing.id)
+  const favorited = Boolean(favoriteRecord || listing.isFavorited)
+  const isFavoriteMutating = addFavoriteMutation.isPending || removeFavoriteMutation.isPending
+
+  const primaryImage = listing.images?.[0] ?? listing.coverImage ?? null
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    if (favorited) {
-      removeFavorite(listing.id)
-    } else {
-      addFavorite(listing)
+
+    if (!isAuthenticated) {
+      navigate('/auth/login')
+      return
     }
+
+    if (favoriteRecord?.id) {
+      removeFavoriteMutation.mutate({ id: favoriteRecord.id })
+      return
+    }
+
+    addFavoriteMutation.mutate({ listingId: listing.id })
   }
 
   return (
     <Link to={`/listing/${listing.id}`}>
       <Card className="overflow-hidden hover:shadow-md transition-shadow group">
-        {/* Image */}
         <div className="relative aspect-[4/3] overflow-hidden bg-muted">
           {primaryImage ? (
             <img
@@ -54,10 +99,11 @@ export function ListingCard({ listing }: ListingCardProps) {
               favorited && 'text-red-500'
             )}
             onClick={handleFavoriteClick}
+            disabled={isFavoriteMutating}
           >
             <Heart className={cn('h-4 w-4', favorited && 'fill-current')} />
           </Button>
-          {listing.status !== 'active' && (
+          {listing.status && listing.status !== 'active' && (
             <Badge
               variant={listing.status === 'sold' ? 'secondary' : 'destructive'}
               className="absolute top-2 left-2"
@@ -67,7 +113,6 @@ export function ListingCard({ listing }: ListingCardProps) {
           )}
         </div>
 
-        {/* Content */}
         <CardContent className="p-4">
           <div className="flex items-start justify-between gap-2 mb-2">
             <h3 className="font-semibold text-lg leading-tight line-clamp-1">{listing.title}</h3>
@@ -77,8 +122,8 @@ export function ListingCard({ listing }: ListingCardProps) {
 
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
             <span>{formatMileage(listing.mileage)}</span>
-            <span className="capitalize">{listing.transmission}</span>
-            <span className="capitalize">{listing.fuelType}</span>
+            <span className="capitalize">{listing.transmission || '-'}</span>
+            <span className="capitalize">{listing.fuelType || '-'}</span>
           </div>
 
           <div className="flex items-center justify-between mt-3 pt-3 border-t text-sm text-muted-foreground">

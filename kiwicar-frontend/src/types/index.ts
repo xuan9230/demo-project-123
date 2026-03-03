@@ -115,16 +115,6 @@ export type SortOption =
   | 'newest'
   | 'mileage_asc'
 
-// Favorite types
-export interface Favorite {
-  id: string
-  listingId: string
-  listing: Listing
-  priceAlertEnabled: boolean
-  targetPrice?: number
-  createdAt: string
-}
-
 // Sell flow types
 export interface SellDraft {
   step: number
@@ -134,23 +124,6 @@ export interface SellDraft {
   description?: string
   price?: number
   priceNegotiable?: boolean
-}
-
-// API response types
-export interface PaginatedResponse<T> {
-  data: T[]
-  meta: {
-    page: number
-    perPage: number
-    total: number
-    totalPages: number
-  }
-}
-
-export interface ApiResponse<T> {
-  success: boolean
-  data: T
-  message?: string
 }
 
 // NZ Regions

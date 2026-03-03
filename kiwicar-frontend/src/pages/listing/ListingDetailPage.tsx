@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   Heart,
@@ -20,7 +21,8 @@ import {
   XCircle,
 } from 'lucide-react'
 import { useListing } from '@/hooks/useListings'
-import { useFavoritesStore } from '@/stores/favorites'
+import { trpc } from '@/lib/trpc'
+import { useAuthStore } from '@/stores/auth'
 import { ImageGallery } from '@/components/common/ImageGallery'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -33,15 +35,57 @@ import { formatPrice, formatMileage, getDaysAgo, cn } from '@/lib/utils'
 export default function ListingDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { data: listing, isLoading, error } = useListing(id!)
-  const { addFavorite, removeFavorite, isFavorited } = useFavoritesStore()
+  const viewedListingIdRef = useRef<string | null>(null)
+  const { isAuthenticated } = useAuthStore()
+  const utils = trpc.useUtils()
+  const { data: listing, isLoading, error } = useListing(id ?? '')
+  const { data: favorites = [] } = trpc.favorites.list.useQuery(undefined, {
+    enabled: isAuthenticated,
+  })
+  const incrementViewMutation = trpc.listings.incrementView.useMutation()
+  const addFavoriteMutation = trpc.favorites.add.useMutation({
+    onSuccess: () => {
+      void utils.favorites.list.invalidate()
+      void utils.listings.list.invalidate()
+      if (id) {
+        void utils.listings.getById.invalidate({ id })
+      }
+    },
+  })
+  const removeFavoriteMutation = trpc.favorites.remove.useMutation({
+    onSuccess: () => {
+      void utils.favorites.list.invalidate()
+      void utils.listings.list.invalidate()
+      if (id) {
+        void utils.listings.getById.invalidate({ id })
+      }
+    },
+  })
+  const favoriteRecord = favorites.find(
+    (favorite: { id: string; listingId: string }) => favorite.listingId === listing?.id
+  )
+
+  useEffect(() => {
+    if (!id || viewedListingIdRef.current === id) {
+      return
+    }
+
+    viewedListingIdRef.current = id
+    incrementViewMutation.mutate({ id })
+  }, [id, incrementViewMutation])
 
   const handleFavoriteToggle = () => {
     if (!listing) return
-    if (isFavorited(listing.id)) {
-      removeFavorite(listing.id)
+
+    if (!isAuthenticated) {
+      navigate('/auth/login')
+      return
+    }
+
+    if (favoriteRecord?.id) {
+      removeFavoriteMutation.mutate({ id: favoriteRecord.id })
     } else {
-      addFavorite(listing)
+      addFavoriteMutation.mutate({ listingId: listing.id })
     }
   }
 
@@ -126,7 +170,8 @@ export default function ListingDetailPage() {
 
   const wofStatus = getWofStatus()
   const regoStatus = getRegoStatus()
-  const favorited = isFavorited(listing.id)
+  const favorited = Boolean(favoriteRecord || listing.isFavorited)
+  const isFavoriteMutating = addFavoriteMutation.isPending || removeFavoriteMutation.isPending
   const daysAgo = getDaysAgo(listing.createdAt)
   const priceVsEstimate =
     listing.aiPriceEstimate && listing.price < listing.aiPriceEstimate.min
@@ -179,6 +224,7 @@ export default function ListingDetailPage() {
                 variant="outline"
                 size="icon"
                 onClick={handleFavoriteToggle}
+                disabled={isFavoriteMutating}
                 className={cn(favorited && 'text-red-500 border-red-500')}
               >
                 <Heart className={cn('h-5 w-5', favorited && 'fill-red-500')} />
